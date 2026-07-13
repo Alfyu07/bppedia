@@ -1,9 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("BPPedia design review", () => {
-  test("presents the approved institutional-tech direction", async ({
-    page,
-  }) => {
+  test("presents the cinematic institutional direction", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") {
+        consoleErrors.push(message.text());
+      }
+    });
+
     await page.goto("/design-review");
 
     await expect(page).toHaveTitle(/Design Review.*BPPedia/);
@@ -11,19 +16,21 @@ test.describe("BPPedia design review", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "Temukan kebijakan. Pahami konteksnya.",
+        name: "Pengetahuan yang bergerak bersama perusahaan.",
       })
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Mulai mencari" })
+      page.getByRole("link", { name: "Jelajahi BPPedia" })
     ).toHaveAttribute("href", "/");
-    await expect(page.getByTestId("brand-green")).toBeVisible();
-    await expect(page.getByTestId("action-blue")).toBeVisible();
-    await expect(page.getByTestId("attention-gold")).toBeVisible();
+    await expect(page.getByTestId("institution-ribbon")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Satu identitas. Tiga tugas warna." })
+    ).toBeVisible();
     await expect(
       page.getByRole("heading", {
-        name: "Pengetahuan perusahaan, tanpa menebak.",
+        name: "Kebijakan bukan halaman statis.",
       })
     ).toBeVisible();
+    expect(consoleErrors).toEqual([]);
   });
 });

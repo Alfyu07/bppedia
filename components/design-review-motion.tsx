@@ -33,6 +33,31 @@ export function DesignReviewMotion({ children }: DesignReviewMotionProps) {
         y: 28,
       });
 
+      gsap.from("[data-ribbon-part]", {
+        duration: 1.4,
+        ease: "power4.out",
+        opacity: 0,
+        rotation: (_, target) =>
+          (target as SVGPathElement).getBBox().x % 2 ? 8 : -8,
+        scale: 0.72,
+        stagger: 0.12,
+        transformOrigin: "center center",
+      });
+
+      gsap.to("[data-ribbon-line]", {
+        duration: 18,
+        ease: "none",
+        repeat: -1,
+        strokeDashoffset: -140,
+      });
+
+      gsap.to("[data-marquee-track]", {
+        duration: 24,
+        ease: "none",
+        repeat: -1,
+        xPercent: -50,
+      });
+
       ScrollTrigger.matchMedia({
         "(min-width: 768px)": () => {
           ScrollTrigger.create({
