@@ -4,6 +4,19 @@
 
 You are building a Next.js 15 App Router application with TypeScript. React Server Components (RSC) are the default. Client Components are an opt-in escape hatch for interactivity, browser APIs, and event handlers. Server Actions handle all mutations.
 
+## Linear Workflow
+
+- Linear workspace and team: `Alfy`.
+- Linear project: `bppedia`.
+- Linear is the source of truth for issue scope, acceptance criteria, dependencies, and status.
+- Use the workflow `Backlog → In Progress → Review → Done`.
+- Move an issue to `In Progress` before implementation begins.
+- Complete the frontend with mock data and obtain user review before starting dependent backend work.
+- After automated verification passes, add verification evidence and move the issue to `Review`.
+- Always provide a manual verification checklist to the user at review handoff.
+- Never move an issue directly from `In Progress` to `Done`.
+- Move an issue from `Review` to `Done` only after the user explicitly confirms the manual review passed.
+
 ## Code Style & Structure
 
 - Enable `"strict": true` in `tsconfig.json`. Never use `any`; use `unknown` with type guards.
