@@ -31,8 +31,12 @@ export async function proxy(request: NextRequest) {
 
   const isGuest = guestRegex.test(token?.email ?? "");
 
-  if (token && !isGuest && ["/login", "/register"].includes(pathname)) {
-    return NextResponse.redirect(new URL(`${base}/`, request.url));
+  if (
+    token &&
+    !isGuest &&
+    ["/login", "/register", "/admin/login"].includes(pathname)
+  ) {
+    return NextResponse.redirect(new URL(`${base}/admin`, request.url));
   }
 
   return NextResponse.next();
@@ -42,6 +46,8 @@ export const config = {
   matcher: [
     "/",
     "/chat/:id",
+    "/admin",
+    "/admin/login",
     "/api/:path*",
     "/login",
     "/register",
