@@ -250,7 +250,7 @@ The design combines selected strengths from two references:
 - **Vercel:** Geist typography, crisp light surfaces, precise form controls, subtle stacked elevation, and disciplined technical details.
 - **BPPedia:** forest green identity, azure interaction, golden warning emphasis, Indonesian product language, and knowledge-centered layouts.
 
-This is a product UI system, not a marketing-site treatment. Product content, citations, document status, and actions remain the visual priority.
+This is a product UI system with one controlled brand-led entry surface. The employee landing page may use a cinematic composition to establish identity, but its hero must still demonstrate the real product through a functional search entry and a credible chat-and-citation product window. Product content, citations, document status, and actions remain the visual priority.
 
 ## 2. Brand relationship
 
@@ -316,7 +316,7 @@ Geist and Geist Mono are already part of the application foundation and remain t
 - **Geist 400:** body text and supporting copy.
 - **Geist Mono 400:** document IDs, versions, timestamps where alignment matters, code, and technical metadata.
 
-Display typography stops at 48px. BPPedia is an application, so it must not inherit oversized marketing headlines. Headings use sentence case and restrained negative tracking. Body copy remains readable at 14–16px with generous line height. Policy excerpts and long answers target a readable line length of 60–75 characters.
+Product typography stops at 48px. The employee landing hero is the single controlled exception: it may scale beyond 48px at desktop when the heading remains within three lines, preserves comfortable gutters, and collapses safely on mobile. All other headings use sentence case and restrained negative tracking. Body copy remains readable at 14–16px with generous line height. Policy excerpts and long answers target a readable line length of 60–75 characters.
 
 ## 5. Shape, spacing, and density
 
@@ -384,6 +384,31 @@ Use cards for document groups, actionable previews, dialogs, and independently i
 
 Status always includes a text label. Color is supplemental.
 
+### Employee landing hero
+
+The employee landing combines brand-led cinematic composition with a direct product entry point.
+
+- Left side: `BPPedia` wordmark, concise value proposition, and one primary search composer.
+- Right side: a polished product window showing a believable assistant answer, source citation, document version, and active status.
+- The product window replaces abstract ribbon artwork. It must look like a real application preview, not a decorative fake dashboard.
+- On mobile, the search composer precedes the product window in a single column.
+- The composer uses forest only for identity cues, azure for submit and focus, and gold only for caution states.
+
+The landing does not answer the question itself. It hands the question to the chat flow.
+
+### Optimistic chat handoff
+
+Submitting a non-empty landing query follows this contract:
+
+1. Generate the new chat identifier using the same ID utility as the chat feature.
+2. Navigate to `/chat/{id}`.
+3. Render the submitted query immediately as the first user message.
+4. Show the assistant response state as loading while the chat request begins.
+5. Preserve the query through navigation without placing sensitive text in the URL.
+6. On submission failure, retain the query and expose a retry path without creating duplicate chats.
+
+This is an ALF-48 behavior contract. ALF-46 defines the visual roles consumed by the composer, optimistic message, loading state, citation, and status; it does not implement chat creation or persistence.
+
 ## 8. Motion
 
 Motion provides feedback; it is not decoration.
@@ -428,7 +453,8 @@ The system excludes patterns that conflict with an internal knowledge applicatio
 
 - Linear lavender as a BPPedia accent.
 - Vercel rainbow or multi-stop marketing mesh gradients.
-- Giant marketing headlines above the 48px product ceiling.
+- Giant marketing headlines outside the employee landing hero exception.
+- Hero headings that exceed three lines or compromise mobile readability.
 - Pill-shaped primary CTAs.
 - Neon or decorative outer glows.
 - Heavy single drop shadows.
@@ -440,6 +466,8 @@ The system excludes patterns that conflict with an internal knowledge applicatio
 ### Allowed in controlled contexts
 
 - A subtle forest-to-azure tonal transition in one large identity or empty-state surface.
+- One cinematic employee landing composition with restrained GSAP reveal and scroll choreography.
+- A product-window hero visual containing chat, citation, document version, and status cues.
 - A soft focus halo that is part of the accessible azure focus treatment.
 - Pills for badges, statuses, compact filters, and avatars.
 - Cards when grouping, interaction, selection, or elevation requires them.
@@ -458,7 +486,7 @@ ALF-46 establishes shared foundations only:
 - shared focus and reduced-motion behavior;
 - representative shared primitives needed to prove token consumption.
 
-ALF-46 does not build the employee landing screen, admin login screen, document-management workflows, or feature-specific page compositions. Those later issues consume this system.
+ALF-46 may retain `/design-review` as a disposable visual prototype for reviewing the system, but it does not ship the employee landing screen, chat handoff, admin login screen, document-management workflows, or other feature-specific compositions. ALF-48 consumes this system to build the employee landing, replace the abstract ribbon with the product window, and implement the optimistic chat handoff contract.
 
 The implementation should preserve the existing Tailwind v4 semantic bridge in `app/globals.css`. Components consume semantic roles such as `background`, `foreground`, `primary`, `brand`, `warning`, and `border`; raw brand values must not be scattered across JSX.
 
@@ -470,6 +498,7 @@ Automated verification:
 - Run TypeScript without emitting output.
 - Run the existing route and frontend smoke tests affected by global visual changes.
 - Verify no raw institution palette values are duplicated across component files.
+- In ALF-48, add an end-to-end check that landing submit creates one chat route, preserves the query as the first optimistic message, and shows assistant loading without placing the query in the URL.
 
 Manual verification:
 
@@ -480,7 +509,9 @@ Manual verification:
 - Enable reduced motion and confirm non-essential transitions stop.
 - Test mobile, tablet, and desktop widths.
 - Confirm forest green signals identity, blue signals interaction, and yellow remains rare.
-- Confirm no feature-specific screen was redesigned under ALF-46.
+- Confirm the cinematic prototype remains legible with motion disabled.
+- Confirm the hero product window reads as chat plus citation, not as abstract logo artwork or a generic dashboard.
+- Confirm no feature-specific screen was shipped under ALF-46.
 
 ## 14. Reference decisions
 
@@ -495,4 +526,4 @@ Manual verification:
 | Vercel stacked elevation | Adapt | Subtle and limited to functional elevation |
 | Vercel marketing pills | Reject | Pills restricted to badges and filters |
 | Vercel mesh gradient | Reject by default | One subtle forest-to-azure exception only |
-| Reference marketing scale | Reject | Product display ceiling of 48px |
+| Reference marketing scale | Adapt | 48px product ceiling; larger type only in the employee landing hero |
