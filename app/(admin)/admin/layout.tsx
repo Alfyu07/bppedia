@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Wordmark } from "@/components/wordmark";
 
 export default function AdminLayout({
   children,
@@ -7,9 +8,7 @@ export default function AdminLayout({
     <div className="min-h-dvh bg-background text-foreground">
       <header className="border-b">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link className="font-semibold" href="/admin">
-            BPPedia Admin
-          </Link>
+          <Wordmark href="/admin" suffix="Admin" />
           <Link className="text-sm text-muted-foreground" href="/">
             Buka chat
           </Link>
