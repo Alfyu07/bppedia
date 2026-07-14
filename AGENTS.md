@@ -4,6 +4,8 @@
 
 You are building a Next.js 15 App Router application with TypeScript. React Server Components (RSC) are the default. Client Components are an opt-in escape hatch for interactivity, browser APIs, and event handlers. Server Actions handle all mutations.
 
+Read `docs/lessons.md` before starting work and before retrying a failed tool call. Append reusable lessons after mistakes.
+
 ## Linear Workflow
 
 - Linear workspace and team: `Alfy`.
