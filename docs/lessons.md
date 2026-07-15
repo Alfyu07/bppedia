@@ -20,19 +20,3 @@ Read this file before starting work and before retrying a failed tool call. Add 
 ### Verification
 
 After every Linear mutation, call `linear_get_issue` and confirm the expected description content and status exist. Tool success output, an empty subagent response, or intent is not verification.
-
-## Graphify codebase exploration
-
-### Failure
-
-A codebase graph search used a hand-written NetworkX traversal instead of Graphify's native query command, bypassing Graphify's matching and answer persistence workflow.
-
-### Prevention
-
-- Use `graphify query "<question>"` for graph-based codebase exploration; do not recreate traversal logic in ad hoc scripts.
-- Ask narrowly scoped questions so node matching targets domain concepts rather than generic terms such as `test`.
-- Use file reads only to validate exact details surfaced by the graph.
-
-### Verification
-
-Confirm command output starts with Graphify's traversal summary and includes source files, locations, and confidence-tagged edges.
