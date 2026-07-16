@@ -15,9 +15,10 @@ Read `docs/lessons.md` before starting work and before retrying a failed tool ca
 - Move an issue to `In Progress` before implementation begins.
 - Complete the frontend with mock data and obtain user review before starting dependent backend work.
 - After automated verification passes, add verification evidence and move the issue to `Review`.
-- Always provide a manual verification checklist to the user at review handoff.
+- For ordinary issues, move from `Review` to `Done` after the automated gate passes; manual approval is not required.
+- Require a manual verification checklist and explicit user approval only for milestone gate issues, authentication/security work, and destructive flows.
+- Milestone gate issues are `ALF-47`, `ALF-56`, `ALF-65`, `ALF-67`, `ALF-82`, `ALF-89`, and `ALF-93`.
 - Never move an issue directly from `In Progress` to `Done`.
-- Move an issue from `Review` to `Done` only after the user explicitly confirms the manual review passed.
 
 ## Code Style & Structure
 

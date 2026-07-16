@@ -15,7 +15,7 @@ Read this file before starting work and before retrying a failed tool call. Add 
 - If a tool schema forces an invalid field combination, treat that tool as unavailable for the operation; switch tools instead of retrying.
 - For ALF issue review handoff, use `linear_save_issue` to append evidence/checklists to the description and set `state: "Review"` when `linear_save_comment` cannot produce a valid payload.
 - Preserve the existing issue description when using this workaround; append rather than replace scope or acceptance criteria.
-- Never move directly to `Done`; manual review confirmation remains required.
+- Never move directly from `In Progress` to `Done`; follow the manual-gate exceptions in `AGENTS.md`.
 
 ### Verification
 
@@ -79,3 +79,33 @@ Before retrying a Playwright run that stalls after environment loading, inspect 
 ### Verification
 
 Confirm the port is free before the run, then verify Playwright prints `Running N tests` and releases the port afterward.
+
+## File edit payloads
+
+### Failure
+
+An `edit` call was sent with an empty payload while correcting a planning document, so the tool aborted without changing the file.
+
+### Prevention
+
+- Build and inspect all required edit fields before calling the tool: absolute `filePath`, exact non-empty `oldString`, distinct `newString`, and explicit `replaceAll`.
+- After an aborted edit, read the target section again before retrying; never infer its current content.
+
+### Verification
+
+After each edit, search for the obsolete text and read the changed section before claiming the correction applied.
+
+## Linear read batching
+
+### Failure
+
+A parallel audit sent eight Linear reads at once, causing timeouts and closed socket connections. A subsequent single read confirmed the MCP connection remained unavailable.
+
+### Prevention
+
+- Audit Linear sequentially or in batches of at most two requests.
+- After a batch causes transport errors, probe once with a single read; if it fails, stop and report the audit as blocked.
+
+### Verification
+
+Confirm each read returns data before starting the next batch; never infer Linear state from a failed audit.
