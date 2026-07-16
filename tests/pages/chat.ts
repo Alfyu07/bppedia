@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 
+const createChatUrl = () => `/chat/${crypto.randomUUID()}`;
 const MODEL_BUTTON_REGEX = /Kimi|Codestral|Mistral|DeepSeek|GPT|Grok/i;
 
 export class ChatPage {
@@ -10,11 +11,11 @@ export class ChatPage {
   }
 
   async goto() {
-    await this.page.goto("/");
+    await this.page.goto(createChatUrl());
   }
 
   async createNewChat() {
-    await this.page.goto("/");
+    await this.page.goto(createChatUrl());
     await this.page.waitForSelector("[data-testid='multimodal-input']");
   }
 

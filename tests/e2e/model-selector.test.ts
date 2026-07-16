@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+const createChatUrl = () => `/chat/${crypto.randomUUID()}`;
+
 test.describe("Model Selector", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto(createChatUrl());
   });
 
   test("displays a model button", async ({ page }) => {

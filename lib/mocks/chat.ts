@@ -91,3 +91,83 @@ const CHAT_MOCK_FIXTURES = {
     status: "success",
   },
 } as const satisfies Record<ChatMockScenario, ChatLandingMockResult>;
+
+interface IdleMockChatHandoff {
+  status: "idle";
+}
+
+interface SubmittingMockChatHandoff {
+  chatId: string;
+  prompt: string;
+  status: "submitting";
+}
+
+interface SucceededMockChatHandoff {
+  chatId: string;
+  prompt: string;
+  status: "succeeded";
+}
+
+interface FailedMockChatHandoff {
+  chatId: string;
+  error: string;
+  prompt: string;
+  status: "failed";
+}
+
+export type MockChatHandoffState =
+  | IdleMockChatHandoff
+  | SubmittingMockChatHandoff
+  | SucceededMockChatHandoff
+  | FailedMockChatHandoff;
+
+export function beginMockChatHandoff(
+  state: MockChatHandoffState,
+  prompt: string,
+  createChatId: () => string
+): MockChatHandoffState {
+  const normalizedPrompt = prompt.trim();
+
+  if (
+    !normalizedPrompt ||
+    state.status === "submitting" ||
+    state.status === "succeeded"
+  ) {
+    return state;
+  }
+
+  return {
+    chatId:
+      state.status === "failed" && state.prompt === normalizedPrompt
+        ? state.chatId
+        : createChatId(),
+    prompt: normalizedPrompt,
+    status: "submitting",
+  };
+}
+
+export function completeMockChatHandoff(
+  state: MockChatHandoffState
+): MockChatHandoffState {
+  return state.status === "submitting"
+    ? { ...state, status: "succeeded" }
+    : state;
+}
+
+export function failMockChatHandoff(
+  state: MockChatHandoffState,
+  error: string
+): MockChatHandoffState {
+  return state.status === "submitting"
+    ? { ...state, error, status: "failed" }
+    : state;
+}
+
+export function changeFailedMockChatPrompt(
+  state: MockChatHandoffState,
+  prompt: string
+): MockChatHandoffState {
+  return state.status === "failed" && state.prompt !== prompt.trim()
+    ? { status: "idle" }
+    : state;
+}

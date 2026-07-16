@@ -8,10 +8,10 @@ test.describe("BPPedia route foundation", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "id");
   });
 
-  test("employee chat remains available at root", async ({ page }) => {
+  test("employee chat landing remains available at root", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByTestId("multimodal-input")).toBeVisible();
+    await expect(page.getByTestId("landing-prompt-input")).toBeVisible();
   });
 
   test("admin workspace foundation is reachable", async ({ page }) => {

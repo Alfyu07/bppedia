@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+const createChatUrl = () => `/chat/${crypto.randomUUID()}`;
 const CHAT_URL_REGEX = /\/chat\/[\w-]+/;
 const ERROR_TEXT_REGEX = /error|failed|trouble/i;
 
 test.describe("Chat API Integration", () => {
   test("sends message and receives AI response", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(createChatUrl());
 
     const input = page.getByTestId("multimodal-input");
     await input.fill("Hello");
@@ -20,19 +21,21 @@ test.describe("Chat API Integration", () => {
     expect(content?.length).toBeGreaterThan(0);
   });
 
-  test("redirects to /chat/:id after sending message", async ({ page }) => {
-    await page.goto("/");
+  test("keeps the explicit conversation route after sending", async ({
+    page,
+  }) => {
+    const chatUrl = createChatUrl();
+    await page.goto(chatUrl);
 
     const input = page.getByTestId("multimodal-input");
-    await input.fill("Test redirect");
+    await input.fill("Test route");
     await page.getByTestId("send-button").click();
 
-    // URL should change to /chat/:id format
-    await expect(page).toHaveURL(CHAT_URL_REGEX, { timeout: 10_000 });
+    await expect(page).toHaveURL(chatUrl);
   });
 
   test("clears input after sending", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(createChatUrl());
 
     const input = page.getByTestId("multimodal-input");
     await input.fill("Test message");
@@ -43,7 +46,7 @@ test.describe("Chat API Integration", () => {
   });
 
   test("shows stop button during generation", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(createChatUrl());
     const input = page.getByTestId("multimodal-input");
     await input.fill("Test");
     await page.getByTestId("send-button").click();
@@ -64,7 +67,7 @@ test.describe("Chat Error Handling", () => {
       });
     });
 
-    await page.goto("/");
+    await page.goto(createChatUrl());
     const input = page.getByTestId("multimodal-input");
     await input.fill("Test error");
     await page.getByTestId("send-button").click();
@@ -78,7 +81,7 @@ test.describe("Chat Error Handling", () => {
 
 test.describe("Suggested Actions", () => {
   test("suggested actions are clickable", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(createChatUrl());
 
     const suggestions = page.locator(
       "[data-testid='suggested-actions'] button"

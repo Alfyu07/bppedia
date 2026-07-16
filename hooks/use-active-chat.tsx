@@ -3,12 +3,13 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
   type Dispatch,
   type ReactNode,
   type SetStateAction,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -25,6 +26,13 @@ import { useAutoResume } from "@/hooks/use-auto-resume";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import type { Vote } from "@/lib/db/schema";
 import { ChatbotError } from "@/lib/errors";
+import {
+  beginMockChatHandoff,
+  changeFailedMockChatPrompt,
+  completeMockChatHandoff,
+  failMockChatHandoff,
+  type MockChatHandoffState,
+} from "@/lib/mocks";
 import type { ChatMessage } from "@/lib/types";
 import { fetcher, fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
 
@@ -42,6 +50,11 @@ type ActiveChatContextValue = {
   visibilityType: VisibilityType;
   isReadonly: boolean;
   isLoading: boolean;
+  isMockChat: boolean;
+  mockChatError: string | undefined;
+  mockChatStatus: MockChatHandoffState["status"];
+  startMockChat: (prompt: string) => void;
+  updateMockChatPrompt: (value: string) => void;
   votes: Vote[] | undefined;
   currentModelId: string;
   setCurrentModelId: (id: string) => void;
@@ -58,10 +71,23 @@ function extractChatId(pathname: string): string | null {
 
 export function ActiveChatProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { setDataStream, setWaitingStatus } = useDataStream();
   const { mutate } = useSWRConfig();
+  const [mockHandoff, setMockHandoff] = useState<MockChatHandoffState>({
+    status: "idle",
+  });
+  const mockHandoffRef = useRef(mockHandoff);
+  const [mockMessages, setMockMessages] = useState<ChatMessage[]>([]);
+  const commitMockHandoff = useCallback((next: MockChatHandoffState) => {
+    mockHandoffRef.current = next;
+    setMockHandoff(next);
+  }, []);
 
   const chatIdFromUrl = extractChatId(pathname);
+  const mockChatId = mockHandoff.status === "idle" ? null : mockHandoff.chatId;
+  const isMockChat =
+    mockHandoff.status === "succeeded" && chatIdFromUrl === mockChatId;
   const isNewChat = !chatIdFromUrl;
   const newChatIdRef = useRef(generateUUID());
   const prevPathnameRef = useRef(pathname);
@@ -83,16 +109,15 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
   const [showCreditCardAlert, setShowCreditCardAlert] = useState(false);
 
   const { data: chatData, isLoading } = useSWR(
-    isNewChat
+    isNewChat || isMockChat
       ? null
       : `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/messages?chatId=${chatId}`,
     fetcher,
     { revalidateOnFocus: false }
   );
 
-  const initialMessages: ChatMessage[] = isNewChat
-    ? []
-    : (chatData?.messages ?? []);
+  const initialMessages: ChatMessage[] =
+    isNewChat || isMockChat ? [] : (chatData?.messages ?? []);
   const visibility: VisibilityType = isNewChat
     ? "private"
     : (chatData?.visibility ?? "private");
@@ -175,6 +200,69 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
     }),
   });
 
+  const startMockChat = useCallback(
+    (prompt: string) => {
+      const attempt = beginMockChatHandoff(
+        mockHandoffRef.current,
+        prompt,
+        generateUUID
+      );
+
+      if (
+        attempt === mockHandoffRef.current ||
+        attempt.status !== "submitting"
+      ) {
+        return;
+      }
+
+      commitMockHandoff(attempt);
+      setInput("");
+      setMockMessages([
+        {
+          id: generateUUID(),
+          metadata: { createdAt: new Date().toISOString() },
+          parts: [{ text: attempt.prompt, type: "text" }],
+          role: "user",
+        },
+      ]);
+
+      try {
+        commitMockHandoff(completeMockChatHandoff(attempt));
+        router.push(`/chat/${attempt.chatId}`);
+      } catch {
+        commitMockHandoff(
+          failMockChatHandoff(attempt, "Percakapan belum dapat dibuka.")
+        );
+        setInput(attempt.prompt);
+        setMockMessages([]);
+      }
+    },
+    [commitMockHandoff, router]
+  );
+
+  const updateMockChatPrompt = useCallback(
+    (value: string) => {
+      setInput(value);
+      const next = changeFailedMockChatPrompt(mockHandoffRef.current, value);
+      if (next !== mockHandoffRef.current) {
+        commitMockHandoff(next);
+      }
+    },
+    [commitMockHandoff]
+  );
+
+  const previousRouteRef = useRef(pathname);
+  useEffect(() => {
+    const previousRoute = previousRouteRef.current;
+    previousRouteRef.current = pathname;
+
+    if (pathname === "/" && previousRoute !== "/") {
+      commitMockHandoff({ status: "idle" });
+      setMockMessages([]);
+      setInput("");
+    }
+  }, [commitMockHandoff, pathname]);
+
   useEffect(() => {
     if (status === "submitted" || status === "ready" || status === "error") {
       setWaitingStatus(undefined);
@@ -219,24 +307,6 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
     }
   }, [chatData, isNewChat]);
 
-  const hasAppendedQueryRef = useRef(false);
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const query = params.get("query");
-    if (query && !hasAppendedQueryRef.current) {
-      hasAppendedQueryRef.current = true;
-      window.history.replaceState(
-        {},
-        "",
-        `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/chat/${chatId}`
-      );
-      sendMessage({
-        parts: [{ text: query, type: "text" }],
-        role: "user" as const,
-      });
-    }
-  }, [sendMessage, chatId]);
-
   useAutoResume({
     autoResume: !isNewChat && !!chatData,
     initialMessages,
@@ -244,25 +314,35 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
     setMessages,
   });
 
-  const isReadonly = isNewChat ? false : (chatData?.isReadonly ?? false);
+  const displayMessages = isMockChat ? mockMessages : messages;
+  const displayStatus = isMockChat ? "submitted" : status;
+  const isReadonly = isMockChat
+    ? true
+    : isNewChat
+      ? false
+      : (chatData?.isReadonly ?? false);
 
   const { data: votes } = useSWR<Vote[]>(
-    !isReadonly && messages.length >= 2
+    !isMockChat && !isReadonly && messages.length >= 2
       ? `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/vote?chatId=${chatId}`
       : null,
     fetcher,
     { revalidateOnFocus: false }
   );
 
-  const value = useMemo<ActiveChatContextValue>(
+  const contextValue = useMemo<ActiveChatContextValue>(
     () => ({
       addToolApprovalResponse,
       chatId,
       currentModelId,
       input,
       isLoading: !isNewChat && isLoading,
+      isMockChat,
       isReadonly,
-      messages,
+      messages: displayMessages,
+      mockChatError:
+        mockHandoff.status === "failed" ? mockHandoff.error : undefined,
+      mockChatStatus: mockHandoff.status,
       regenerate,
       sendMessage,
       setCurrentModelId,
@@ -270,33 +350,39 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
       setMessages,
       setShowCreditCardAlert,
       showCreditCardAlert,
-      status,
+      startMockChat,
+      status: displayStatus,
       stop,
+      updateMockChatPrompt,
       visibilityType: visibility,
       votes,
     }),
     [
-      chatId,
-      messages,
-      setMessages,
-      sendMessage,
-      status,
-      stop,
-      regenerate,
       addToolApprovalResponse,
-      input,
-      visibility,
-      isReadonly,
-      isNewChat,
-      isLoading,
-      votes,
+      chatId,
       currentModelId,
+      displayMessages,
+      displayStatus,
+      input,
+      isLoading,
+      isMockChat,
+      isNewChat,
+      isReadonly,
+      mockHandoff,
+      regenerate,
+      sendMessage,
+      setMessages,
       showCreditCardAlert,
+      startMockChat,
+      stop,
+      updateMockChatPrompt,
+      visibility,
+      votes,
     ]
   );
 
   return (
-    <ActiveChatContext.Provider value={value}>
+    <ActiveChatContext.Provider value={contextValue}>
       {children}
     </ActiveChatContext.Provider>
   );

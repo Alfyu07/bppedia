@@ -20,3 +20,62 @@ Read this file before starting work and before retrying a failed tool call. Add 
 ### Verification
 
 After every Linear mutation, call `linear_get_issue` and confirm the expected description content and status exist. Tool success output, an empty subagent response, or intent is not verification.
+
+## Worktree command targeting
+
+### Failure
+
+A chained setup command created a worktree but continued running dependency installation and baseline tests in the original checkout because the shell working directory does not change after `git worktree add`.
+
+### Prevention
+
+- Create the worktree in one command, then run setup and tests in a separate tool call whose `workdir` is the new worktree path.
+- Do not infer command location from preceding commands in the chain.
+
+### Verification
+
+Run `git rev-parse --show-toplevel` with setup commands and confirm it equals the intended worktree before relying on their results.
+
+## Server-rendered React tests
+
+### Failure
+
+Playwright 1.61 transforms JSX in imported `.tsx` files into component-test descriptors (`__pw_type`) even under `@playwright/test`, so `react-dom/server` rejects the result as an invalid React child.
+
+### Prevention
+
+Keep server-render checks outside Playwright. Run them directly with native `node:test` through the installed `tsx` runtime.
+
+### Verification
+
+Run `pnpm test:unit` and confirm server-render checks pass without starting Next.js or a browser.
+
+## Test execution tiers
+
+### Decision
+
+Keep browser-independent mock and server-render checks out of Playwright so routine feedback does not pay for Next.js and browser startup.
+
+### Commands
+
+- Run `frontend-mocks` and `employee-landing-render` under native `node:test` through the installed `tsx` runtime.
+- Provide `test:unit`, `test:e2e`, and `test:landing` scripts; keep `pnpm test` as the complete final/CI gate.
+- During implementation, run only the affected tier or test file. Run the full suite once at review handoff.
+
+### Verification
+
+Compare test counts before and after migration, confirm unit tests run without a web server, then run the complete gate once to ensure no coverage was lost.
+
+## Playwright web server health
+
+### Failure
+
+An orphaned Next/Turbopack process held the configured test port for almost an hour at high CPU while `/ping` timed out. Playwright waited for `webServer.url` and appeared stuck before printing the test count.
+
+### Prevention
+
+Before retrying a Playwright run that stalls after environment loading, inspect the configured port and `/ping`. Stop only the orphaned process; do not rerun the suite blindly.
+
+### Verification
+
+Confirm the port is free before the run, then verify Playwright prints `Running N tests` and releases the port afterward.

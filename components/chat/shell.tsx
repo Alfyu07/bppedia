@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertDialog,
@@ -17,16 +18,21 @@ import {
   useArtifact,
   useArtifactSelector,
 } from "@/hooks/use-artifact";
+import { getChatLandingMock } from "@/lib/mocks";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Artifact } from "./artifact";
 import { ChatHeader } from "./chat-header";
 import { DataStreamHandler } from "./data-stream-handler";
+import { EmployeeLanding } from "./employee-landing";
 import { submitEditedMessage } from "./message-editor";
 import { Messages } from "./messages";
 import { MultimodalInput } from "./multimodal-input";
 
+const EMPLOYEE_LANDING = getChatLandingMock("success");
+
 export function ChatShell() {
+  const pathname = usePathname();
   const {
     chatId,
     messages,
@@ -41,6 +47,11 @@ export function ChatShell() {
     visibilityType,
     isReadonly,
     isLoading,
+    isMockChat,
+    mockChatError,
+    mockChatStatus,
+    startMockChat,
+    updateMockChatPrompt,
     votes,
     currentModelId,
     setCurrentModelId,
@@ -110,6 +121,24 @@ export function ChatShell() {
     window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/`;
   }, []);
 
+  const handleRetryMockChat = useCallback(() => {
+    startMockChat(input);
+  }, [input, startMockChat]);
+
+  if (pathname === "/") {
+    return (
+      <EmployeeLanding
+        handoffError={mockChatError}
+        input={input}
+        landing={EMPLOYEE_LANDING}
+        mockChatStatus={mockChatStatus}
+        onInputChange={updateMockChatPrompt}
+        onRetry={handleRetryMockChat}
+        onSubmit={startMockChat}
+      />
+    );
+  }
+
   return (
     <>
       <div className="flex h-dvh w-full flex-row overflow-hidden">
@@ -142,7 +171,7 @@ export function ChatShell() {
             />
 
             <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
-              {!isReadonly && (
+              {!isReadonly && !isMockChat ? (
                 <MultimodalInput
                   attachments={attachments}
                   chatId={chatId}
@@ -163,7 +192,7 @@ export function ChatShell() {
                   status={status}
                   stop={stop}
                 />
-              )}
+              ) : null}
             </div>
           </div>
         </div>

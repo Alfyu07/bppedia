@@ -9,6 +9,13 @@ export type {
   ChatLandingData,
   ChatLandingMockResult,
   ChatMockScenario,
+  MockChatHandoffState,
   SuggestedQuestion,
 } from "./chat";
-export { getChatLandingMock } from "./chat";
+export {
+  beginMockChatHandoff,
+  changeFailedMockChatPrompt,
+  completeMockChatHandoff,
+  failMockChatHandoff,
+  getChatLandingMock,
+} from "./chat";
