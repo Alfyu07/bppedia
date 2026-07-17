@@ -1,15 +1,29 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, test } from "node:test";
 import {
   type AdminLoginCredentials,
+  applyMockAnswerFeedback,
   beginMockChatHandoff,
   changeFailedMockChatPrompt,
   completeMockChatHandoff,
   failMockChatHandoff,
   getChatLandingMock,
+  getMockAnswerFeedbackOutcome,
+  getMockAnswerFeedbackScenario,
+  getMockConversationOutcome,
+  getMockConversationReply,
+  getMockConversationScenario,
+  type MockAnswerFeedbackEntry,
+  type MockAnswerFeedbackValue,
   type MockChatHandoffState,
   mockAdminLogin,
 } from "@/lib/mocks";
+import {
+  getMockDocumentOverview,
+  normalizeMockDocumentPage,
+} from "@/lib/mocks/documents";
 
 const FIRST_CHAT_ID = "00000000-0000-4000-8000-000000000001";
 const SECOND_CHAT_ID = "00000000-0000-4000-8000-000000000002";
@@ -47,6 +61,310 @@ describe("frontend mock boundary", () => {
 
     assert.ok(success.data.suggestedQuestions.length > 0);
     assert.deepEqual(empty.data.suggestedQuestions, []);
+  });
+
+  test("returns deterministic bilingual employee conversation replies", () => {
+    const indonesian = getMockConversationReply(
+      "Bagaimana cara mengajukan cuti tahunan?",
+      0
+    );
+    const english = getMockConversationReply(
+      "How do I submit annual leave?",
+      0
+    );
+    const followUp = getMockConversationReply(
+      "Bagaimana cara mengajukan cuti tahunan?",
+      1
+    );
+
+    assert.equal(indonesian.language, "id");
+    assert.match(indonesian.text, /cuti/i);
+    assert.equal(english.language, "en");
+    assert.match(english.text, /leave/i);
+    assert.notEqual(followUp.text, indonesian.text);
+    assert.deepEqual(
+      getMockConversationReply("How do I submit annual leave?", 0),
+      english
+    );
+  });
+
+  test("returns active citations with exact canonical document metadata", () => {
+    const reply = getMockConversationReply(
+      "Bagaimana cara mengajukan cuti tahunan?",
+      0
+    );
+
+    assert.equal(reply.citations.length, 2);
+    for (const citation of reply.citations) {
+      const document = getMockDocumentOverview(citation.documentId);
+      assert.ok(document);
+      assert.equal(citation.isActive, true);
+      assert.ok(Number.isSafeInteger(document.pageCount));
+      assert.ok(document.pageCount > 0);
+      assert.ok(Number.isSafeInteger(citation.page));
+      assert.ok(citation.page > 0 && citation.page <= document.pageCount);
+      assert.equal(citation.title, document.title);
+      assert.equal(citation.versionId, document.versionId);
+      assert.equal(citation.versionLabel, document.versionLabel);
+
+      assert.ok(citation.href.startsWith("/"));
+      assert.ok(!citation.href.startsWith("//"));
+      const url = new URL(citation.href, "http://bppedia.local");
+      assert.equal(url.origin, "http://bppedia.local");
+      assert.equal(url.pathname, `/documents/${document.slug}`);
+      assert.equal(url.hash, "");
+      assert.deepEqual([...url.searchParams.keys()], ["page"]);
+      assert.deepEqual(url.searchParams.getAll("page"), [
+        String(citation.page),
+      ]);
+      assert.equal(url.search, `?page=${citation.page}`);
+      assert.equal(
+        citation.href,
+        `/documents/${document.slug}?page=${citation.page}`
+      );
+    }
+    assert.doesNotMatch(
+      reply.citations.map((citation) => citation.title).join(" "),
+      /arsip|inactive/i
+    );
+
+    reply.citations[0].title = "Changed by caller";
+    assert.notEqual(
+      getMockConversationReply("Bagaimana cara mengajukan cuti tahunan?", 0)
+        .citations[0].title,
+      reply.citations[0].title
+    );
+  });
+
+  test("strictly normalizes mock document page tokens", () => {
+    const pageCount = 12;
+    const cases: readonly [readonly string[], number][] = [
+      [[], 1],
+      [[""], 1],
+      [["2", "3"], 1],
+      [[" 2"], 1],
+      [["2 "], 1],
+      [["page"], 1],
+      [["2.5"], 1],
+      [["2e1"], 1],
+      [["9007199254740992"], 1],
+      [["0"], 1],
+      [["-1"], 1],
+      [["02"], 2],
+      [["7"], 7],
+      [["13"], 12],
+    ];
+
+    for (const [values, expected] of cases) {
+      assert.equal(normalizeMockDocumentPage(values, pageCount), expected);
+    }
+    for (const invalidPageCount of [
+      0,
+      -1,
+      1.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.MAX_SAFE_INTEGER + 1,
+    ]) {
+      assert.throws(
+        () => normalizeMockDocumentPage(["1"], invalidPageCount),
+        /pageCount/
+      );
+    }
+  });
+
+  test("normalizes turn indexes and isolates conversation replies", () => {
+    const first = getMockConversationReply(
+      "Bagaimana cara mengajukan cuti tahunan?",
+      0
+    );
+    const negative = getMockConversationReply(
+      "Bagaimana cara mengajukan cuti tahunan?",
+      -1
+    );
+    const fallback = getMockConversationReply(
+      "Bagaimana cara mengajukan cuti tahunan?",
+      99
+    );
+
+    assert.deepEqual(negative, first);
+    assert.deepEqual(
+      fallback,
+      getMockConversationReply("Bagaimana cara mengajukan cuti tahunan?", 100)
+    );
+
+    first.text = "Changed by caller";
+    assert.notEqual(
+      getMockConversationReply("Bagaimana cara mengajukan cuti tahunan?", 0)
+        .text,
+      first.text
+    );
+  });
+
+  test("selects validated employee conversation scenarios", () => {
+    assert.equal(getMockConversationScenario(null), "success");
+    assert.equal(getMockConversationScenario("unknown"), "success");
+    assert.equal(getMockConversationScenario("loading"), "loading");
+    assert.equal(
+      getMockConversationScenario("retryable-error"),
+      "retryable-error"
+    );
+    assert.equal(getMockConversationScenario("disconnected"), "disconnected");
+    assert.equal(getMockConversationScenario("no-answer"), "no-answer");
+  });
+
+  test("returns deterministic loading and retry outcomes", () => {
+    const prompt = "Bagaimana cara mengajukan cuti tahunan?";
+
+    assert.deepEqual(getMockConversationOutcome(prompt, 1, "loading", 0), {
+      status: "loading",
+    });
+    assert.deepEqual(
+      getMockConversationOutcome(prompt, 1, "retryable-error", 0),
+      {
+        message: "Jawaban belum dapat dibuat. Silakan coba lagi.",
+        status: "error",
+      }
+    );
+    assert.deepEqual(getMockConversationOutcome(prompt, 1, "disconnected", 0), {
+      message: "Koneksi terputus. Periksa koneksi Anda lalu coba lagi.",
+      status: "error",
+    });
+    assert.deepEqual(
+      getMockConversationOutcome(prompt, 1, "retryable-error", 1),
+      {
+        reply: getMockConversationReply(prompt, 1),
+        status: "success",
+      }
+    );
+    assert.deepEqual(getMockConversationOutcome(prompt, 1, "disconnected", 1), {
+      reply: getMockConversationReply(prompt, 1),
+      status: "success",
+    });
+  });
+
+  test("returns an honest no-answer outcome before reformulation", () => {
+    const prompt = "Apakah ada tunjangan relokasi antarkota?";
+    const outcome = getMockConversationOutcome(prompt, 0, "no-answer", 0);
+
+    assert.equal(outcome.status, "no-answer");
+    if (outcome.status !== "no-answer") {
+      throw new Error("Expected no-answer outcome");
+    }
+    assert.equal(outcome.data.title, "Jawaban andal tidak ditemukan");
+    assert.match(outcome.data.message, /tidak akan menebak/i);
+    assert.equal(outcome.data.relevantDocuments.length, 2);
+    for (const document of outcome.data.relevantDocuments) {
+      assert.match(document.href, /^\/documents\//);
+      assert.doesNotMatch(document.href, /\/api\/|\.pdf|#/);
+    }
+    assert.deepEqual(getMockConversationOutcome(prompt, 1, "no-answer", 0), {
+      reply: getMockConversationReply(prompt, 1),
+      status: "success",
+    });
+
+    outcome.data.title = "Changed by caller";
+    const fresh = getMockConversationOutcome(prompt, 0, "no-answer", 0);
+    assert.equal(fresh.status, "no-answer");
+    if (fresh.status === "no-answer") {
+      assert.equal(fresh.data.title, "Jawaban andal tidak ditemukan");
+    }
+  });
+
+  test("selects deterministic mock answer feedback scenarios and outcomes", () => {
+    assert.equal(getMockAnswerFeedbackScenario(null), "success");
+    assert.equal(getMockAnswerFeedbackScenario("unknown"), "success");
+    assert.equal(getMockAnswerFeedbackScenario("fail-once"), "fail-once");
+    assert.deepEqual(getMockAnswerFeedbackOutcome("fail-once", 0), {
+      status: "error",
+    });
+    assert.deepEqual(getMockAnswerFeedbackOutcome("fail-once", 1), {
+      status: "success",
+    });
+    assert.deepEqual(getMockAnswerFeedbackOutcome("success", 0), {
+      status: "success",
+    });
+  });
+
+  test("stores only anonymous feedback selection and status per message", () => {
+    const helpful: MockAnswerFeedbackValue = "helpful";
+    const notHelpful: MockAnswerFeedbackValue = "not-helpful";
+    const firstFailure = applyMockAnswerFeedback({}, "assistant-1", helpful, {
+      status: "error",
+    });
+    const firstSaved = applyMockAnswerFeedback(
+      firstFailure,
+      "assistant-1",
+      helpful,
+      { status: "success" }
+    );
+    const firstChanged = applyMockAnswerFeedback(
+      firstSaved,
+      "assistant-1",
+      notHelpful,
+      { status: "success" }
+    );
+    const independent = applyMockAnswerFeedback(
+      firstChanged,
+      "assistant-2",
+      helpful,
+      { status: "success" }
+    );
+    const expected: Record<string, MockAnswerFeedbackEntry> = {
+      "assistant-1": { selection: notHelpful, status: "saved" },
+      "assistant-2": { selection: helpful, status: "saved" },
+    };
+
+    assert.deepEqual(firstFailure, {
+      "assistant-1": { selection: null, status: "error" },
+    });
+    assert.deepEqual(firstSaved, {
+      "assistant-1": { selection: helpful, status: "saved" },
+    });
+    assert.deepEqual(firstChanged, {
+      "assistant-1": { selection: notHelpful, status: "saved" },
+    });
+    assert.deepEqual(independent, expected);
+    assert.deepEqual(Object.keys(independent["assistant-1"]).sort(), [
+      "selection",
+      "status",
+    ]);
+  });
+
+  test("keeps mock answer feedback hook inside its anonymous source boundary", () => {
+    const source = readFileSync(
+      join(process.cwd(), "hooks", "use-mock-answer-feedback.ts"),
+      "utf8"
+    );
+
+    assert.doesNotMatch(
+      source,
+      /ChatMessage|auth|lib(?:\/|-)db|swr|\bfetch\b|\bstorage\b|localStorage|sessionStorage|indexedDB|CacheStorage|\bcaches\b|use server|Server Actions?|api(?:\/|-)vote/i
+    );
+  });
+
+  test("keeps anonymous feedback isolated from authenticated message actions", () => {
+    const messageSource = readFileSync(
+      join(process.cwd(), "components", "chat", "message.tsx"),
+      "utf8"
+    );
+    const anonymousFeedbackSource = readFileSync(
+      join(
+        process.cwd(),
+        "components",
+        "chat",
+        "anonymous-answer-feedback.tsx"
+      ),
+      "utf8"
+    );
+
+    assert.match(messageSource, /import \{ MessageActions \}/);
+    assert.match(messageSource, /<MessageActions/);
+    assert.match(messageSource, /<AnonymousAnswerFeedback/);
+    assert.doesNotMatch(
+      anonymousFeedbackSource,
+      /api(?:\/|-)vote|\bfetch\b|swr|localStorage|sessionStorage|indexedDB|CacheStorage|\bcaches\b/i
+    );
   });
 
   test("keeps one chat ID through failure and retry", () => {
@@ -143,6 +461,36 @@ describe("frontend mock boundary", () => {
     }
 
     assert.equal(freshSuccess.data.title, "Tanyakan kebijakan perusahaan");
+  });
+
+  test("serves canonical mock PDF metadata and assets", () => {
+    const benefits = getMockDocumentOverview("employee-benefits");
+    const mobility = getMockDocumentOverview("employee-mobility");
+    assert.ok(benefits);
+    assert.ok(mobility);
+    assert.equal(benefits.pageCount, 12);
+    assert.equal(mobility.pageCount, 8);
+    assert.equal(benefits.versionLabel, "2026.1");
+    assert.equal(mobility.versionLabel, "2026.1");
+    assert.notEqual(benefits.pdfHref, mobility.pdfHref);
+
+    for (const document of [benefits, mobility]) {
+      assert.match(document.pdfHref, /^\/documents\/files\/[^?#]+\.pdf$/);
+      const assetPath = join(process.cwd(), "public", document.pdfHref);
+      assert.equal(existsSync(assetPath), true);
+      const pdf = readFileSync(assetPath);
+      assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+      assert.deepEqual(pdf.toString("latin1").match(/D:\d{14}\+00'00'/g), [
+        "D:20260101000000+00'00'",
+        "D:20260101000000+00'00'",
+      ]);
+    }
+
+    benefits.title = "Changed by caller";
+    assert.notEqual(
+      getMockDocumentOverview("employee-benefits")?.title,
+      benefits.title
+    );
   });
 
   test("selects deterministic admin authentication states", () => {

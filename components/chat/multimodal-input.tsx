@@ -88,6 +88,9 @@ function PureMultimodalInput({
   editingMessage,
   onCancelEdit,
   isLoading,
+  isMockChat = false,
+  mockConversationError,
+  onRetryMockMessage,
 }: {
   chatId: string;
   input: string;
@@ -108,6 +111,9 @@ function PureMultimodalInput({
   editingMessage?: ChatMessage | null;
   onCancelEdit?: () => void;
   isLoading?: boolean;
+  isMockChat?: boolean;
+  mockConversationError?: string;
+  onRetryMockMessage?: () => void;
 }) {
   const router = useRouter();
   const { setTheme, resolvedTheme } = useTheme();
@@ -130,16 +136,18 @@ function PureMultimodalInput({
   );
 
   useEffect(() => {
-    if (textareaRef.current) {
+    if (!isMockChat && textareaRef.current) {
       const domValue = textareaRef.current.value;
       const finalValue = domValue || localStorageInput || "";
       setInput(finalValue);
     }
-  }, [localStorageInput, setInput]);
+  }, [isMockChat, localStorageInput, setInput]);
 
   useEffect(() => {
-    setLocalStorageInput(input);
-  }, [input, setLocalStorageInput]);
+    if (!isMockChat) {
+      setLocalStorageInput(input);
+    }
+  }, [input, isMockChat, setLocalStorageInput]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
@@ -152,7 +160,7 @@ function PureMultimodalInput({
       const val = event.target.value;
       setInput(val);
 
-      if (val.startsWith("/") && !val.includes(" ")) {
+      if (!isMockChat && val.startsWith("/") && !val.includes(" ")) {
         setSlashOpen(true);
         setSlashQuery(val.slice(1));
         setSlashIndex(0);
@@ -160,7 +168,7 @@ function PureMultimodalInput({
         setSlashOpen(false);
       }
     },
-    [setInput]
+    [isMockChat, setInput]
   );
 
   const handleSlashSelect = useCallback(
@@ -227,11 +235,13 @@ function PureMultimodalInput({
   );
 
   const submitForm = useCallback(() => {
-    window.history.pushState(
-      {},
-      "",
-      `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/chat/${chatId}`
-    );
+    if (!isMockChat) {
+      window.history.pushState(
+        {},
+        "",
+        `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/chat/${chatId}`
+      );
+    }
 
     sendMessage({
       parts: [
@@ -250,7 +260,9 @@ function PureMultimodalInput({
     });
 
     setAttachments([]);
-    setLocalStorageInput("");
+    if (!isMockChat) {
+      setLocalStorageInput("");
+    }
     setInput("");
 
     if (width && width > 768) {
@@ -258,6 +270,7 @@ function PureMultimodalInput({
     }
   }, [
     input,
+    isMockChat,
     setInput,
     attachments,
     sendMessage,
@@ -371,13 +384,13 @@ function PureMultimodalInput({
 
   useEffect(() => {
     const textarea = textareaRef.current;
-    if (!textarea) {
+    if (isMockChat || !textarea) {
       return;
     }
 
     textarea.addEventListener("paste", handlePaste);
     return () => textarea.removeEventListener("paste", handlePaste);
-  }, [handlePaste]);
+  }, [handlePaste, isMockChat]);
 
   const handleCancelEditMouseDown = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -391,8 +404,12 @@ function PureMultimodalInput({
     setSlashOpen(false);
   }, []);
 
+  const handleRetryMockMessage = useCallback(() => {
+    onRetryMockMessage?.();
+  }, [onRetryMockMessage]);
+
   const handlePromptSubmit = useCallback(() => {
-    if (input.startsWith("/")) {
+    if (!isMockChat && input.startsWith("/")) {
       const query = input.slice(1).trim();
       const cmd = slashCommands.find((c) => c.name === query);
       if (cmd) {
@@ -408,7 +425,14 @@ function PureMultimodalInput({
     } else {
       toast.error("Please wait for the model to finish its response!");
     }
-  }, [attachments.length, handleSlashSelect, input, status, submitForm]);
+  }, [
+    attachments.length,
+    handleSlashSelect,
+    input,
+    isMockChat,
+    status,
+    submitForm,
+  ]);
 
   const handleTextareaKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -469,7 +493,8 @@ function PureMultimodalInput({
         </div>
       ) : null}
 
-      {!editingMessage &&
+      {!isMockChat &&
+        !editingMessage &&
         !isLoading &&
         messages.length === 0 &&
         attachments.length === 0 &&
@@ -481,14 +506,33 @@ function PureMultimodalInput({
           />
         )}
 
-      <input
-        className="pointer-events-none fixed -top-4 -left-4 size-0.5 opacity-0"
-        multiple
-        onChange={handleFileChange}
-        ref={fileInputRef}
-        tabIndex={-1}
-        type="file"
-      />
+      {isMockChat ? null : (
+        <input
+          className="pointer-events-none fixed -top-4 -left-4 size-0.5 opacity-0"
+          multiple
+          onChange={handleFileChange}
+          ref={fileInputRef}
+          tabIndex={-1}
+          type="file"
+        />
+      )}
+
+      {mockConversationError && onRetryMockMessage ? (
+        <div
+          className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-[12px] text-destructive"
+          role="alert"
+        >
+          <span>{mockConversationError}</span>
+          <Button
+            className="min-h-11 shrink-0"
+            onClick={handleRetryMockMessage}
+            type="button"
+            variant="outline"
+          >
+            Coba lagi
+          </Button>
+        </div>
+      ) : null}
 
       <div className="relative">
         {slashOpen ? (
@@ -502,10 +546,11 @@ function PureMultimodalInput({
       </div>
 
       <PromptInput
+        allowAttachments={!isMockChat}
         className="[&>div]:rounded-2xl [&>div]:border [&>div]:border-border/30 [&>div]:bg-card/70 [&>div]:shadow-[var(--shadow-composer)] [&>div]:transition-shadow [&>div]:duration-300 [&>div]:focus-within:shadow-[var(--shadow-composer-focus)]"
         onSubmit={handlePromptSubmit}
       >
-        {(attachments.length > 0 || uploadQueue.length > 0) && (
+        {!isMockChat && (attachments.length > 0 || uploadQueue.length > 0) && (
           <div
             className="flex w-full self-start flex-row gap-2 overflow-x-auto px-3 pt-3 no-scrollbar"
             data-testid="attachments-preview"
@@ -533,8 +578,10 @@ function PureMultimodalInput({
           </div>
         )}
         <PromptInputTextarea
+          allowAttachments={!isMockChat}
           className="min-h-24 text-[13px] leading-relaxed px-4 pt-3.5 pb-1.5 placeholder:text-muted-foreground/35"
           data-testid="multimodal-input"
+          disabled={isMockChat && status === "submitted"}
           onChange={handleInput}
           onKeyDown={handleTextareaKeyDown}
           placeholder={
@@ -544,19 +591,21 @@ function PureMultimodalInput({
           value={input}
         />
         <PromptInputFooter className="px-3 pb-3">
-          <PromptInputTools>
-            <AttachmentsButton
-              fileInputRef={fileInputRef}
-              selectedModelId={selectedModelId}
-              status={status}
-            />
-            <ModelSelectorCompact
-              onModelChange={onModelChange}
-              selectedModelId={selectedModelId}
-            />
-          </PromptInputTools>
+          {isMockChat ? null : (
+            <PromptInputTools>
+              <AttachmentsButton
+                fileInputRef={fileInputRef}
+                selectedModelId={selectedModelId}
+                status={status}
+              />
+              <ModelSelectorCompact
+                onModelChange={onModelChange}
+                selectedModelId={selectedModelId}
+              />
+            </PromptInputTools>
+          )}
 
-          {status === "submitted" ? (
+          {status === "submitted" && !isMockChat ? (
             <StopButton setMessages={setMessages} stop={stop} />
           ) : (
             <PromptInputSubmit
@@ -602,6 +651,12 @@ export const MultimodalInput = memo(
       return false;
     }
     if (prevProps.isLoading !== nextProps.isLoading) {
+      return false;
+    }
+    if (prevProps.isMockChat !== nextProps.isMockChat) {
+      return false;
+    }
+    if (prevProps.mockConversationError !== nextProps.mockConversationError) {
       return false;
     }
     if (prevProps.messages.length !== nextProps.messages.length) {

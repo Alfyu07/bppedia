@@ -369,6 +369,7 @@ export type PromptInputProps = Omit<
 > & {
   // e.g., "image/*" or leave undefined for any
   accept?: string;
+  allowAttachments?: boolean;
   multiple?: boolean;
   // When true, accepts drops anywhere on document. Default false (opt-in).
   globalDrop?: boolean;
@@ -391,6 +392,7 @@ export type PromptInputProps = Omit<
 export const PromptInput = ({
   className,
   accept,
+  allowAttachments = true,
   multiple,
   globalDrop,
   syncHiddenInput,
@@ -609,7 +611,7 @@ export const PromptInput = ({
   // Attach drop handlers on nearest form and document (opt-in)
   useEffect(() => {
     const form = formRef.current;
-    if (!form) {
+    if (!allowAttachments || !form) {
       return;
     }
     if (globalDrop) {
@@ -636,10 +638,10 @@ export const PromptInput = ({
       form.removeEventListener("dragover", onDragOver);
       form.removeEventListener("drop", onDrop);
     };
-  }, [add, globalDrop]);
+  }, [add, allowAttachments, globalDrop]);
 
   useEffect(() => {
-    if (!globalDrop) {
+    if (!allowAttachments || !globalDrop) {
       return;
     }
 
@@ -662,7 +664,7 @@ export const PromptInput = ({
       document.removeEventListener("dragover", onDragOver);
       document.removeEventListener("drop", onDrop);
     };
-  }, [add, globalDrop]);
+  }, [add, allowAttachments, globalDrop]);
 
   useEffect(
     () => () => {
@@ -783,16 +785,18 @@ export const PromptInput = ({
   // Render with or without local provider
   const inner = (
     <>
-      <input
-        accept={accept}
-        aria-label="Upload files"
-        className="hidden"
-        multiple={multiple}
-        onChange={handleChange}
-        ref={inputRef}
-        title="Upload files"
-        type="file"
-      />
+      {allowAttachments ? (
+        <input
+          accept={accept}
+          aria-label="Upload files"
+          className="hidden"
+          multiple={multiple}
+          onChange={handleChange}
+          ref={inputRef}
+          title="Upload files"
+          type="file"
+        />
+      ) : null}
       <form
         className={cn("w-full", className)}
         onSubmit={handleSubmit}
@@ -829,11 +833,14 @@ export const PromptInputBody = ({
 
 export type PromptInputTextareaProps = ComponentProps<
   typeof InputGroupTextarea
->;
+> & {
+  allowAttachments?: boolean;
+};
 
 export const PromptInputTextarea = ({
   onChange,
   onKeyDown,
+  allowAttachments = true,
   className,
   placeholder = "What would you like to know?",
   ...props
@@ -893,7 +900,7 @@ export const PromptInputTextarea = ({
     (event) => {
       const items = event.clipboardData?.items;
 
-      if (!items) {
+      if (!allowAttachments || !items) {
         return;
       }
 
@@ -913,7 +920,7 @@ export const PromptInputTextarea = ({
         attachments.add(files);
       }
     },
-    [attachments]
+    [allowAttachments, attachments]
   );
 
   const handleCompositionEnd = useCallback(() => setIsComposing(false), []);

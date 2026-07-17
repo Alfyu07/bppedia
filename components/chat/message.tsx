@@ -1,8 +1,13 @@
 "use client";
 import type { UseChatHelpers } from "@ai-sdk/react";
+import Link from "next/link";
 import { useCallback } from "react";
 import type { Vote } from "@/lib/db/schema";
-import type { ChatMessage } from "@/lib/types";
+import type {
+  MockAnswerFeedbackEntry,
+  MockAnswerFeedbackValue,
+} from "@/lib/mocks";
+import type { ChatMessage, CitationData, NoAnswerData } from "@/lib/types";
 import { cn, sanitizeText } from "@/lib/utils";
 import { MessageContent, MessageResponse } from "../ai-elements/message";
 import { Shimmer } from "../ai-elements/shimmer";
@@ -13,6 +18,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "../ai-elements/tool";
+import { AnonymousAnswerFeedback } from "./anonymous-answer-feedback";
 import { useDataStream } from "./data-stream-provider";
 import { DocumentToolResult } from "./document";
 import { DocumentPreview } from "./document-preview";
@@ -24,7 +30,8 @@ import { Weather } from "./weather";
 
 function WaitingText() {
   const { waitingStatus } = useDataStream();
-  const waitingText = waitingStatus?.message ?? "Waiting...";
+  const waitingText =
+    waitingStatus?.message ?? "BPPedia sedang menyiapkan jawaban";
 
   return (
     <div className="flex min-h-[calc(13px*1.65)] min-w-0 items-center text-[13px] leading-[1.65]">
@@ -89,9 +96,12 @@ const PurePreviewMessage = ({
   isLoading,
   setMessages: _setMessages,
   regenerate: _regenerate,
+  isMockChat = false,
   isReadonly,
+  mockAnswerFeedback,
   requiresScrollPadding: _requiresScrollPadding,
   onEdit,
+  onMockAnswerFeedback,
 }: {
   addToolApprovalResponse: UseChatHelpers<ChatMessage>["addToolApprovalResponse"];
   chatId: string;
@@ -100,9 +110,15 @@ const PurePreviewMessage = ({
   isLoading: boolean;
   setMessages: UseChatHelpers<ChatMessage>["setMessages"];
   regenerate: UseChatHelpers<ChatMessage>["regenerate"];
+  isMockChat?: boolean;
   isReadonly: boolean;
+  mockAnswerFeedback?: MockAnswerFeedbackEntry;
   requiresScrollPadding: boolean;
   onEdit?: (message: ChatMessage) => void;
+  onMockAnswerFeedback?: (
+    messageId: string,
+    value: MockAnswerFeedbackValue
+  ) => void;
 }) => {
   const attachmentsFromMessage = message.parts.filter(
     (part) => part.type === "file"
@@ -119,9 +135,16 @@ const PurePreviewMessage = ({
       (part.type === "reasoning" &&
         "text" in part &&
         part.text?.trim().length > 0) ||
+      part.type === "data-noAnswer" ||
+      part.type === "data-citations" ||
       part.type.startsWith("tool-")
   );
   const isThinking = isAssistant && isLoading && !hasAnyContent;
+  const hasCompletedAnswer = message.parts?.some(
+    (part) =>
+      (part.type === "text" && part.text.trim().length > 0) ||
+      part.type === "data-noAnswer"
+  );
 
   const attachments = attachmentsFromMessage.length > 0 && (
     <div
@@ -186,6 +209,14 @@ const PurePreviewMessage = ({
           <MessageResponse>{sanitizeText(part.text)}</MessageResponse>
         </MessageContent>
       );
+    }
+
+    if (type === "data-noAnswer") {
+      return <NoAnswerMessage data={part.data} key={key} />;
+    }
+
+    if (type === "data-citations") {
+      return <CitationCards data={part.data} key={key} />;
     }
 
     if (type === "tool-getWeather") {
@@ -352,12 +383,26 @@ const PurePreviewMessage = ({
     />
   );
 
+  const anonymousFeedback =
+    isMockChat &&
+    isAssistant &&
+    !isLoading &&
+    hasCompletedAnswer &&
+    onMockAnswerFeedback ? (
+      <AnonymousAnswerFeedback
+        feedback={mockAnswerFeedback}
+        messageId={message.id}
+        onFeedback={onMockAnswerFeedback}
+      />
+    ) : null;
+
   const content = isThinking ? (
     <WaitingText />
   ) : (
     <>
       {attachments}
       {parts}
+      {anonymousFeedback}
       {actions}
     </>
   );
@@ -395,11 +440,87 @@ const PurePreviewMessage = ({
 
 export const PreviewMessage = PurePreviewMessage;
 
+function CitationCards({ data }: { data: CitationData }) {
+  return (
+    <section aria-label="Sumber jawaban" className="mt-2">
+      <h3 className="font-medium text-muted-foreground text-xs">
+        Sumber jawaban
+      </h3>
+      <p className="mt-1 text-muted-foreground text-xs">
+        Sumber dibuka di tab baru agar percakapan tetap tersedia.
+      </p>
+      <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+        {data.citations.map((citation) => (
+          <li key={citation.id}>
+            <Link
+              className="flex min-h-11 flex-col justify-center rounded-xl border border-border/50 bg-card/60 px-3 py-2 transition-colors hover:bg-muted"
+              data-document-id={citation.documentId}
+              data-page={citation.page}
+              data-version-id={citation.versionId}
+              href={citation.href}
+              prefetch={false}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <span className="font-medium text-foreground text-xs">
+                {citation.title}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                Versi {citation.versionLabel} · Halaman {citation.page}
+              </span>
+              <span className="sr-only">Buka sumber di tab baru.</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function NoAnswerMessage({ data }: { data: NoAnswerData }) {
+  return (
+    <section
+      aria-live="polite"
+      className="max-w-2xl rounded-2xl border border-border/50 bg-card/70 p-4"
+      role="status"
+    >
+      <h3 className="font-medium text-foreground text-sm">{data.title}</h3>
+      <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
+        {data.message}
+      </p>
+      <ul className="mt-4 grid gap-2">
+        {data.relevantDocuments.map((document) => (
+          <li key={document.id}>
+            <Link
+              className="flex min-h-11 flex-col justify-center rounded-xl border border-border/50 px-3 py-2 transition-colors hover:bg-muted"
+              href={document.href}
+              prefetch={false}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <span className="font-medium text-foreground text-sm">
+                {document.title}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                {document.description}
+              </span>
+              <span className="sr-only">Dibuka di tab baru.</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export const ThinkingMessage = () => (
   <div
+    aria-label="BPPedia sedang menyiapkan jawaban"
+    aria-live="polite"
     className="group/message w-full"
     data-role="assistant"
     data-testid="message-assistant-loading"
+    role="status"
   >
     <div className="flex items-start gap-3">
       <div className="flex h-[calc(13px*1.65)] shrink-0 items-center">

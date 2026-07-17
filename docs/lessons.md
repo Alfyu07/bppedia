@@ -89,6 +89,7 @@ An `edit` call was sent with an empty payload while correcting a planning docume
 ### Prevention
 
 - Build and inspect all required edit fields before calling the tool: absolute `filePath`, exact non-empty `oldString`, distinct `newString`, and explicit `replaceAll`.
+- Compare `oldString` and `newString` before dispatch; a valid match with identical replacement is still an aborted edit.
 - After an aborted edit, read the target section again before retrying; never infer its current content.
 
 ### Verification
@@ -109,3 +110,104 @@ A parallel audit sent eight Linear reads at once, causing timeouts and closed so
 ### Verification
 
 Confirm each read returns data before starting the next batch; never infer Linear state from a failed audit.
+
+## Zsh command wrappers
+
+### Failure
+
+A verification wrapper used `status` for an exit-code variable, but `status` is read-only in zsh. The tests passed, then the wrapper failed and obscured the result.
+
+### Prevention
+
+Use a neutral variable such as `rc` when preserving an exit code in cross-shell commands.
+
+### Verification
+
+Print the preserved exit code and confirm the wrapper exits with the same value as the wrapped command.
+
+## Imported callback signatures
+
+### Failure
+
+A callback copied from call-site usage assumed its message argument was required, but the imported AI SDK `sendMessage` signature permits `undefined`.
+
+### Prevention
+
+Inspect or inherit the dependency's exact callback type, then guard optional inputs at the adapter boundary before reading fields.
+
+### Verification
+
+Run `tsc --noEmit` immediately after introducing a typed adapter, before expanding behavior tests.
+
+## Playwright line selectors
+
+### Failure
+
+A focused Playwright command used a stale source line after inserting tests, so it reported `No tests found` instead of exercising behavior.
+
+### Prevention
+
+Resolve the current test declaration line immediately before every `file:line` invocation, or use a stable title filter.
+
+### Verification
+
+Confirm Playwright prints `Running N tests` with `N > 0` before treating output as RED or GREEN evidence.
+
+## Event-handler callback adapters
+
+### Failure
+
+A retry callback gained an optional string argument and was passed directly to `onClick`; React supplied a `MouseEvent`, causing `.trim()` to fail at runtime despite TypeScript accepting the broader callback assignment.
+
+### Prevention
+
+Wrap domain callbacks at JSX event boundaries (`onClick={() => retry()}`) whenever their signature is not the exact React event-handler signature.
+
+### Verification
+
+Run the actual click interaction in E2E, not only Enter/programmatic invocation, after changing callback parameters.
+
+## Browser-evaluated tuple inference
+
+### Failure
+
+A Playwright storage snapshot returned array literals from `Array.from`; TypeScript widened each tuple to `(string | null)[]`, breaking the declared tuple return type and nullable-key sorting.
+
+### Prevention
+
+Annotate browser-evaluated tuple literals at creation (`as [string, string | null]`) when later destructuring depends on fixed positions.
+
+### Verification
+
+Run `pnpm exec tsc --noEmit` after adding browser snapshot helpers.
+
+## Next.js development overlay in interaction tests
+
+### Failure
+
+A long Playwright flow timed out because the Next.js development overlay portal intercepted pointer events over a visible, enabled submit button.
+
+### Prevention
+
+When a test verifies form behavior rather than pointer targeting, submit through the focused input with Enter instead of forcing a click through development chrome. Keep dedicated click tests for actual click regressions.
+
+### Verification
+
+Inspect the Playwright call log for `nextjs-portal` interception, switch only the affected non-pointer assertion, then rerun the complete file on a fresh port.
+
+## Production smoke harnesses
+
+### Failure
+
+A one-line production smoke used a malformed CSS attribute selector, then treated the Suspense fallback's generic status as the hydrated viewer status. Error paths also left a browser process open long enough to obscure teardown.
+
+### Prevention
+
+- Quote CSS attribute values and prefer an existing tested selector verbatim.
+- Wait for the hydrated element itself (`output`) rather than the first generic status role when the fallback shares that role.
+- Put browser shutdown in `finally`, start Next directly instead of through a package-manager wrapper, and always trap server teardown.
+- Use available runtimes (`node`) rather than assuming a `python` alias exists.
+
+### Verification
+
+After the smoke, confirm the expected page text, asset/PDF responses, final query-only URL, and that the selected port has no listener.

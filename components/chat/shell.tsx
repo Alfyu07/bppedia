@@ -48,9 +48,13 @@ export function ChatShell() {
     isReadonly,
     isLoading,
     isMockChat,
+    mockAnswerFeedback,
     mockChatError,
     mockChatStatus,
+    mockConversationError,
+    retryMockMessage,
     startMockChat,
+    submitMockAnswerFeedback,
     updateMockChatPrompt,
     votes,
     currentModelId,
@@ -160,9 +164,12 @@ export function ChatShell() {
               chatId={chatId}
               isArtifactVisible={isArtifactVisible}
               isLoading={isLoading}
+              isMockChat={isMockChat}
               isReadonly={isReadonly}
               messages={messages}
+              mockAnswerFeedback={mockAnswerFeedback}
               onEditMessage={handleEditMessage}
+              onMockAnswerFeedback={submitMockAnswerFeedback}
               regenerate={regenerate}
               selectedModelId={currentModelId}
               setMessages={setMessages}
@@ -171,16 +178,19 @@ export function ChatShell() {
             />
 
             <div className="sticky bottom-0 z-1 mx-auto flex w-full max-w-4xl gap-2 border-t-0 bg-background px-2 pb-3 md:px-4 md:pb-4">
-              {!isReadonly && !isMockChat ? (
+              {!isReadonly || isMockChat ? (
                 <MultimodalInput
                   attachments={attachments}
                   chatId={chatId}
                   editingMessage={editingMessage}
                   input={input}
                   isLoading={isLoading}
+                  isMockChat={isMockChat}
                   messages={messages}
+                  mockConversationError={mockConversationError}
                   onCancelEdit={handleCancelEdit}
                   onModelChange={setCurrentModelId}
+                  onRetryMockMessage={retryMockMessage}
                   selectedModelId={currentModelId}
                   selectedVisibilityType={visibilityType}
                   sendMessage={

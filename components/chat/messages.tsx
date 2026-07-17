@@ -3,6 +3,10 @@ import { ArrowDownIcon } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { useMessages } from "@/hooks/use-messages";
 import type { Vote } from "@/lib/db/schema";
+import type {
+  MockAnswerFeedbackEntry,
+  MockAnswerFeedbackValue,
+} from "@/lib/mocks";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useDataStream } from "./data-stream-provider";
@@ -20,6 +24,12 @@ type MessagesProps = {
   isReadonly: boolean;
   isArtifactVisible: boolean;
   isLoading?: boolean;
+  isMockChat: boolean;
+  mockAnswerFeedback: Record<string, MockAnswerFeedbackEntry>;
+  onMockAnswerFeedback: (
+    messageId: string,
+    value: MockAnswerFeedbackValue
+  ) => void;
   selectedModelId: string;
   onEditMessage?: (message: ChatMessage) => void;
 };
@@ -35,6 +45,9 @@ function PureMessages({
   isReadonly,
   isArtifactVisible,
   isLoading,
+  isMockChat,
+  mockAnswerFeedback,
+  onMockAnswerFeedback,
   selectedModelId: _selectedModelId,
   onEditMessage,
 }: MessagesProps) {
@@ -75,6 +88,7 @@ function PureMessages({
           "absolute inset-0 touch-pan-y overflow-y-auto",
           messages.length > 0 ? "bg-background" : "bg-transparent"
         )}
+        data-testid="messages-container"
         ref={messagesContainerRef}
         style={isArtifactVisible ? { scrollbarWidth: "none" } : undefined}
       >
@@ -86,10 +100,13 @@ function PureMessages({
               isLoading={
                 status === "streaming" && messages.length - 1 === index
               }
+              isMockChat={isMockChat}
               isReadonly={isReadonly}
               key={message.id}
               message={message}
+              mockAnswerFeedback={mockAnswerFeedback[message.id]}
               onEdit={onEditMessage}
+              onMockAnswerFeedback={onMockAnswerFeedback}
               regenerate={regenerate}
               requiresScrollPadding={
                 hasSentMessage && index === messages.length - 1

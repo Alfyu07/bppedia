@@ -1,3 +1,5 @@
+import type { AnswerCitation, NoAnswerData } from "@/lib/types";
+
 export const getChatLandingMock = (
   scenario: ChatMockScenario
 ): ChatLandingMockResult => structuredClone(CHAT_MOCK_FIXTURES[scenario]);
@@ -91,6 +93,198 @@ const CHAT_MOCK_FIXTURES = {
     status: "success",
   },
 } as const satisfies Record<ChatMockScenario, ChatLandingMockResult>;
+
+export type MockAnswerFeedbackValue = "helpful" | "not-helpful";
+
+export type MockAnswerFeedbackEntry =
+  | { selection: MockAnswerFeedbackValue; status: "saved" }
+  | { selection: MockAnswerFeedbackValue | null; status: "error" };
+
+export type MockAnswerFeedbackScenario = "success" | "fail-once";
+
+export function getMockAnswerFeedbackScenario(
+  value: string | null
+): MockAnswerFeedbackScenario {
+  return value === "fail-once" ? value : "success";
+}
+
+export function getMockAnswerFeedbackOutcome(
+  scenario: MockAnswerFeedbackScenario,
+  attempt: number
+): { status: "success" } | { status: "error" } {
+  return scenario === "fail-once" && attempt === 0
+    ? { status: "error" }
+    : { status: "success" };
+}
+
+export function applyMockAnswerFeedback(
+  state: Record<string, MockAnswerFeedbackEntry>,
+  messageId: string,
+  value: MockAnswerFeedbackValue,
+  outcome: { status: "success" } | { status: "error" }
+): Record<string, MockAnswerFeedbackEntry> {
+  return {
+    ...state,
+    [messageId]:
+      outcome.status === "success"
+        ? { selection: value, status: "saved" }
+        : { selection: null, status: "error" },
+  };
+}
+
+export type MockConversationLanguage = "id" | "en";
+
+export interface MockConversationReply {
+  citations: AnswerCitation[];
+  language: MockConversationLanguage;
+  text: string;
+}
+
+export type MockConversationScenario =
+  | "success"
+  | "loading"
+  | "retryable-error"
+  | "disconnected"
+  | "no-answer";
+
+export type MockConversationOutcome =
+  | { status: "loading" }
+  | { message: string; status: "error" }
+  | { data: NoAnswerData; status: "no-answer" }
+  | { reply: MockConversationReply; status: "success" };
+
+const NO_ANSWER_DATA = {
+  message:
+    "BPPedia tidak menemukan jawaban yang cukup andal di dokumen yang tersedia. BPPedia tidak akan menebak. Ubah pertanyaan Anda atau periksa dokumen yang mungkin relevan.",
+  relevantDocuments: [
+    {
+      description: "Ringkasan benefit yang tersedia untuk karyawan.",
+      href: "/documents/employee-benefits",
+      id: "employee-benefits",
+      title: "Kebijakan Benefit Karyawan",
+    },
+    {
+      description: "Panduan umum perpindahan dan mobilitas karyawan.",
+      href: "/documents/employee-mobility",
+      id: "employee-mobility",
+      title: "Panduan Mobilitas Karyawan",
+    },
+  ],
+  title: "Jawaban andal tidak ditemukan",
+} as const satisfies NoAnswerData;
+
+const ANSWER_CITATIONS = [
+  {
+    documentId: "employee-benefits",
+    href: "/documents/employee-benefits?page=12",
+    id: "employee-benefits-v2026-1-p12",
+    isActive: true,
+    page: 12,
+    title: "Kebijakan Benefit Karyawan",
+    versionId: "employee-benefits-v2026-1",
+    versionLabel: "2026.1",
+  },
+  {
+    documentId: "employee-mobility",
+    href: "/documents/employee-mobility?page=8",
+    id: "employee-mobility-v2026-1-p8",
+    isActive: true,
+    page: 8,
+    title: "Panduan Mobilitas Karyawan",
+    versionId: "employee-mobility-v2026-1",
+    versionLabel: "2026.1",
+  },
+  {
+    documentId: "employee-benefits",
+    href: "/documents/employee-benefits",
+    id: "employee-benefits-archived-p4",
+    isActive: false,
+    page: 4,
+    title: "Arsip Benefit Karyawan",
+    versionId: "employee-benefits-archived",
+    versionLabel: "2024.1",
+  },
+] as const satisfies readonly AnswerCitation[];
+
+const MOCK_CONVERSATIONS = {
+  en: {
+    fallback:
+      "You can continue by checking the company policy cited in this conversation.",
+    replies: [
+      "Submit annual leave through the employee portal, select the dates, and send it to your manager for approval.",
+      "Include the leave dates and a short handover note for work that needs coverage.",
+      "You can track the approval status from the employee portal.",
+    ],
+  },
+  id: {
+    fallback:
+      "Anda dapat melanjutkan dengan memeriksa kebijakan perusahaan yang dirujuk dalam percakapan ini.",
+    replies: [
+      "Ajukan cuti tahunan melalui portal karyawan, pilih tanggal cuti, lalu kirim kepada atasan untuk disetujui.",
+      "Cantumkan tanggal cuti dan catatan serah terima singkat untuk pekerjaan yang perlu dilanjutkan.",
+      "Status persetujuan dapat dipantau melalui portal karyawan.",
+    ],
+  },
+} as const satisfies Record<
+  MockConversationLanguage,
+  { fallback: string; replies: readonly string[] }
+>;
+
+export function getMockConversationScenario(
+  value: string | null
+): MockConversationScenario {
+  return value === "loading" ||
+    value === "retryable-error" ||
+    value === "disconnected" ||
+    value === "no-answer"
+    ? value
+    : "success";
+}
+
+export function getMockConversationOutcome(
+  initialPrompt: string,
+  assistantTurnIndex: number,
+  scenario: MockConversationScenario,
+  attempt: number
+): MockConversationOutcome {
+  if (scenario === "loading") {
+    return { status: "loading" };
+  }
+  if (scenario === "no-answer" && assistantTurnIndex === 0) {
+    return { data: structuredClone(NO_ANSWER_DATA), status: "no-answer" };
+  }
+  if (attempt === 0 && scenario !== "success" && scenario !== "no-answer") {
+    return {
+      message:
+        scenario === "disconnected"
+          ? "Koneksi terputus. Periksa koneksi Anda lalu coba lagi."
+          : "Jawaban belum dapat dibuat. Silakan coba lagi.",
+      status: "error",
+    };
+  }
+  return {
+    reply: getMockConversationReply(initialPrompt, assistantTurnIndex),
+    status: "success",
+  };
+}
+
+export function getMockConversationReply(
+  initialPrompt: string,
+  assistantTurnIndex: number
+): MockConversationReply {
+  const language = initialPrompt.trim().toLowerCase().startsWith("how ")
+    ? "en"
+    : "id";
+  const script = MOCK_CONVERSATIONS[language];
+  const text =
+    script.replies[Math.max(0, assistantTurnIndex)] ?? script.fallback;
+
+  return structuredClone({
+    citations: ANSWER_CITATIONS.filter((citation) => citation.isActive),
+    language,
+    text,
+  });
+}
 
 interface IdleMockChatHandoff {
   status: "idle";

@@ -34,16 +34,46 @@ export type WaitingStatusData = {
   modelName: string;
 };
 
+export interface AnswerCitation {
+  documentId: string;
+  href: string;
+  id: string;
+  isActive: boolean;
+  page: number;
+  title: string;
+  versionId: string;
+  versionLabel: string;
+}
+
+export interface CitationData {
+  citations: readonly AnswerCitation[];
+}
+
+export interface NoAnswerDocument {
+  description: string;
+  href: string;
+  id: string;
+  title: string;
+}
+
+export interface NoAnswerData {
+  message: string;
+  relevantDocuments: readonly NoAnswerDocument[];
+  title: string;
+}
+
 export type CustomUIDataTypes = {
   textDelta: string;
   imageDelta: string;
   sheetDelta: string;
   codeDelta: string;
+  citations: CitationData;
   suggestion: Suggestion;
   appendMessage: string;
   id: string;
   title: string;
   kind: ArtifactKind;
+  noAnswer: NoAnswerData;
   clear: null;
   finish: null;
   "chat-title": string;
