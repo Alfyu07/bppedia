@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, test } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -55,8 +57,46 @@ describe("admin document list render contract", () => {
       markup.indexOf("Kebijakan Benefit Karyawan") <
         markup.indexOf("Panduan Mobilitas Karyawan")
     );
-    assert.match(markup, /class="[^"]*md:table[^"]*"/);
-    assert.match(markup, /class="[^"]*md:hidden[^"]*"/);
+    assert.match(markup, /Dokumen diarsipkan/);
+    assert.match(
+      markup,
+      /<h2 class="[^"]*text-xl[^"]*focus-visible:ring-2[^"]*" id="primary-documents-heading" tabindex="-1">Dokumen BPP<\/h2>/
+    );
+    assert.match(
+      markup,
+      /<h2 class="[^"]*focus-visible:ring-2[^"]*" id="archived-documents-heading" tabindex="-1">Dokumen diarsipkan<\/h2>/
+    );
+    assert.match(
+      markup,
+      /tidak digunakan dalam pencarian atau jawaban chat karyawan hingga dipulihkan/
+    );
+    assert.equal((markup.match(/>Arsipkan<\/button>/g) ?? []).length, 2);
+    assert.equal((markup.match(/>Pulihkan<\/button>/g) ?? []).length, 2);
+    assert.equal(
+      (markup.match(/aria-label="Arsipkan Kebijakan Benefit Karyawan"/g) ?? [])
+        .length,
+      2
+    );
+    assert.equal(
+      (markup.match(/aria-label="Pulihkan Kode Etik Karyawan"/g) ?? []).length,
+      2
+    );
+    const desktopRows = markup.match(/<tr[^>]*>.*?<\/tr>/g) ?? [];
+    for (const title of [
+      "Panduan Mobilitas Karyawan",
+      "Pedoman Perjalanan Dinas",
+    ]) {
+      const row = desktopRows.find((candidate) => candidate.includes(title));
+      assert.ok(row);
+      assert.doesNotMatch(row, /Arsipkan|Pulihkan/);
+    }
+    assert.equal((markup.match(/<th[^>]*>Aksi<\/th>/g) ?? []).length, 2);
+    assert.equal((markup.match(/<dt[^>]*>Aksi<\/dt>/g) ?? []).length, 2);
+    assert.equal((markup.match(/class="[^"]*md:table[^"]*"/g) ?? []).length, 2);
+    assert.equal(
+      (markup.match(/class="[^"]*md:hidden[^"]*"/g) ?? []).length,
+      2
+    );
   });
 
   test("renders explicit loading and empty states", () => {
@@ -70,6 +110,28 @@ describe("admin document list render contract", () => {
     for (const markup of [loading, empty]) {
       assert.doesNotMatch(markup, /Cari judul BPP/);
       assert.doesNotMatch(markup, /Status dokumen/);
+      assert.doesNotMatch(markup, /Arsipkan|Pulihkan|Dokumen diarsipkan/);
     }
+  });
+
+  test("guards transitions in current state and defines focus fallback", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components", "admin", "admin-document-list.tsx"),
+      "utf8"
+    );
+
+    assert.match(
+      source,
+      /setDocuments\(\(current\) => \{[\s\S]*?current\.find/
+    );
+    assert.match(source, /candidate\?\.status !== "active"/);
+    assert.match(source, /candidate\?\.status !== "archived"/);
+    assert.match(source, /pendingFocusDestinationRef\.current = "archived"/);
+    assert.match(source, /pendingFocusDestinationRef\.current = "primary"/);
+    assert.match(
+      source,
+      /destinationRef\.current \?\? searchInputRef\.current/
+    );
+    assert.doesNotMatch(source, /setFocusDestination/);
   });
 });
