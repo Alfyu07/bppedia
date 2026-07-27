@@ -29,8 +29,11 @@ export function AdminDocumentVersionHistory({
   return (
     <section className="space-y-6">
       <header className="space-y-3">
-        <Link className="text-sm hover:underline" href="/admin">
-          Kembali ke dokumen BPP
+        <Link
+          className="inline-flex min-h-11 items-center text-sm hover:underline"
+          href="/admin"
+        >
+          ← Kembali ke dokumen BPP
         </Link>
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold">{result.data.title}</h1>
@@ -172,7 +175,12 @@ function VersionAction({
       </Button>
     );
   }
-  return version.isActive ? "Versi aktif" : "Tidak tersedia";
+  if (version.isActive) {
+    return "Versi aktif";
+  }
+  return version.processingStatus === "processing"
+    ? "Tersedia setelah pemrosesan selesai"
+    : "Tidak tersedia karena pemrosesan gagal";
 }
 
 function formatDate(value: string) {

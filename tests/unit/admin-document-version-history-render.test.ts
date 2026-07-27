@@ -30,6 +30,8 @@ describe("admin document version history presentation", () => {
     const markup = renderScenario("success");
 
     assert.match(markup, /href="\/admin"/);
+    assert.match(markup, /← Kembali ke dokumen BPP/);
+    assert.match(markup, /min-h-11/);
     for (const copy of [
       "Kembali ke dokumen BPP",
       "Kebijakan Benefit Karyawan",
@@ -72,6 +74,11 @@ describe("admin document version history presentation", () => {
       2
     );
     assert.equal(occurrences(markup, 'type="button"'), 2);
+    assert.equal(occurrences(markup, "Tersedia setelah pemrosesan selesai"), 2);
+    assert.equal(
+      occurrences(markup, "Tidak tersedia karena pemrosesan gagal"),
+      2
+    );
     for (const label of ["2026.2", "2026.3", "2026.4"]) {
       assert.doesNotMatch(
         markup,
