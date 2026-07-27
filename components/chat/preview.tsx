@@ -78,7 +78,7 @@ export function Preview() {
           onClick={handleDefaultAction}
           type="button"
         >
-          Ask anything...
+          Tanyakan kebijakan perusahaan
         </button>
       </div>
     </div>

@@ -28,3 +28,4 @@ tsconfig.tsbuildinfo
 docs/superpowers/
 .superpowers
 graphify-out/
+audit/shots/*

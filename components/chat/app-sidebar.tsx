@@ -94,13 +94,18 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   className="size-8 !px-0 items-center justify-center group-data-[collapsible=icon]:group-hover/logo:opacity-0"
                   tooltip="Chatbot"
                 >
-                  <Link href="/" onClick={closeMobile}>
+                  <Link
+                    aria-label="Ke beranda chat"
+                    href="/"
+                    onClick={closeMobile}
+                  >
                     <MessageSquareIcon className="size-4 text-sidebar-foreground/50" />
                   </Link>
                 </SidebarMenuButton>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <SidebarMenuButton
+                      aria-label="Buka sidebar"
                       className="pointer-events-none absolute inset-0 size-8 opacity-0 group-data-[collapsible=icon]:pointer-events-auto group-data-[collapsible=icon]:group-hover/logo:opacity-100"
                       onClick={handleToggleSidebar}
                     >

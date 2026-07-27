@@ -131,15 +131,24 @@ export function ChatShell() {
 
   if (pathname === "/") {
     return (
-      <EmployeeLanding
-        handoffError={mockChatError}
-        input={input}
-        landing={EMPLOYEE_LANDING}
-        mockChatStatus={mockChatStatus}
-        onInputChange={updateMockChatPrompt}
-        onRetry={handleRetryMockChat}
-        onSubmit={startMockChat}
-      />
+      <div className="flex h-dvh w-full flex-col overflow-hidden bg-sidebar">
+        <ChatHeader
+          chatId={chatId}
+          isReadonly
+          selectedVisibilityType={visibilityType}
+        />
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background">
+          <EmployeeLanding
+            handoffError={mockChatError}
+            input={input}
+            landing={EMPLOYEE_LANDING}
+            mockChatStatus={mockChatStatus}
+            onInputChange={updateMockChatPrompt}
+            onRetry={handleRetryMockChat}
+            onSubmit={startMockChat}
+          />
+        </div>
+      </div>
     );
   }
 
