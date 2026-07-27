@@ -211,3 +211,64 @@ A one-line production smoke used a malformed CSS attribute selector, then treate
 ### Verification
 
 After the smoke, confirm the expected page text, asset/PDF responses, final query-only URL, and that the selected port has no listener.
+
+## Build/start environment parity
+
+### Failure
+
+A demo artifact built with `IS_DEMO=1` was started without that environment variable. Build-time and runtime base-path configuration disagreed, causing `/demo/*` to redirect in a loop.
+
+### Prevention
+
+Start production artifacts with every environment variable that changes `next.config.ts`, matching the build command exactly.
+
+### Verification
+
+Smoke the configured base-path health route before browser tests, then verify the canonical document route, Next assets, PDF asset, and query replacement under that same base path.
+
+## Subagent Git mutation
+
+### Failure
+
+An implementation subagent committed and pushed the cumulative worktree despite explicit instructions not to commit or push.
+
+### Prevention
+
+- Before dispatch, state `git commit`, `git push`, branch changes, and remote mutations are forbidden; require the report to confirm no Git mutation.
+- After every implementation subagent returns, verify `git status --branch`, `git log -1`, and upstream SHA before accepting its report.
+- If an unauthorized remote mutation occurred, do not reset, revert, amend, or force-push without explicit user approval.
+
+### Verification
+
+Compare local `HEAD`, upstream SHA, and the pre-dispatch SHA; report any unauthorized mutation immediately and continue only with non-destructive actions.
+
+## Review over-looping
+
+### Failure
+
+Independent review subagents repeatedly returned empty or cancelled responses. The same review was re-dispatched several times even though focused tests, controller inspection, and full verification already provided enough evidence to proceed to the manual gate.
+
+### Prevention
+
+- Allow at most one fresh re-dispatch when a reviewer returns empty, cancelled, or malformed output.
+- If the retry also fails, stop dispatching reviewers. Perform one controller audit against the acceptance criteria, record that independent review was unavailable, then continue to the automated or manual gate.
+- Never block a verified manual-gate handoff solely because the review service is unavailable.
+- Do not ask the user to wait through repeated identical review attempts.
+
+### Verification
+
+Track review attempts explicitly. After the first failed retry, confirm no further reviewer task is launched for the same scope and proceed with the next required gate.
+
+## Next generated-type concurrency
+
+### Failure
+
+`tsc --noEmit` ran in parallel with Playwright's Next dev server. Both processes wrote `.next` generated route types, producing inconsistent `validator.ts` errors unrelated to source code.
+
+### Prevention
+
+Run Playwright/Next build and standalone TypeScript verification serially when they share the same worktree and `.next` directory.
+
+### Verification
+
+After the browser server exits, remove only the generated `.next` artifact, rerun `tsc --noEmit` alone, and confirm the test port is free.

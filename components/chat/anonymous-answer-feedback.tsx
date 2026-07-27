@@ -54,7 +54,14 @@ export function AnonymousAnswerFeedback({
       <span
         aria-atomic="true"
         aria-live="polite"
-        className="basis-full text-muted-foreground text-xs"
+        className={cn(
+          "basis-full text-xs",
+          feedback?.status === "error"
+            ? "font-medium text-red-600 dark:text-red-400"
+            : "text-muted-foreground"
+        )}
+        data-status={feedback?.status ?? "idle"}
+        role="status"
       >
         {status}
       </span>

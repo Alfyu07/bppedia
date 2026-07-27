@@ -94,7 +94,11 @@ async function submitFailOnceFeedback(
   const helpful = group.getByRole("button", { name: HELPFUL_NAME });
   const notHelpful = group.getByRole("button", { name: NOT_HELPFUL_NAME });
   await helpful.click();
-  await expect(group).toContainText(/belum tersimpan|gagal|coba lagi/i);
+  const errorStatus = group.getByRole("status");
+  await expect(errorStatus).toContainText(/belum tersimpan|gagal|coba lagi/i);
+  await expect(errorStatus).toHaveAttribute("data-status", "error");
+  await expect(errorStatus).toHaveClass(/text-red-600/);
+  await expect(errorStatus).toHaveClass(/dark:text-red-400/);
   await expect(helpful).toHaveAttribute("aria-pressed", "false");
   await expect(notHelpful).toHaveAttribute("aria-pressed", "false");
   await expect(helpful).toBeEnabled();
@@ -538,18 +542,6 @@ test.describe("employee chat landing", () => {
 
     await openCitation();
     expect(requests).toEqual([]);
-  });
-
-  test("shows citation return-context guidance", async ({ page }) => {
-    await page.goto("/");
-    await startMockConversation(page);
-
-    await expect(
-      page.getByText(
-        "Sumber dibuka di tab baru agar percakapan tetap tersedia.",
-        { exact: true }
-      )
-    ).toBeVisible();
   });
 
   test("preserves exact long-chat context when switching back from a popup", async ({

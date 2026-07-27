@@ -446,9 +446,6 @@ function CitationCards({ data }: { data: CitationData }) {
       <h3 className="font-medium text-muted-foreground text-xs">
         Sumber jawaban
       </h3>
-      <p className="mt-1 text-muted-foreground text-xs">
-        Sumber dibuka di tab baru agar percakapan tetap tersedia.
-      </p>
       <ul className="mt-2 grid gap-2 sm:grid-cols-2">
         {data.citations.map((citation) => (
           <li key={citation.id}>
