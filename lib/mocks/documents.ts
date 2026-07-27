@@ -109,3 +109,99 @@ export function getAdminDocumentListMock(
     status: "success",
   };
 }
+
+export type AdminVersionProcessingStatus =
+  | "processed"
+  | "processing"
+  | "failed";
+
+export type AdminDocumentHistoryScenario = "success" | "loading" | "empty";
+
+export interface AdminDocumentVersionItem {
+  createdAt: string;
+  id: string;
+  isActive: boolean;
+  label: string;
+  processingStatus: AdminVersionProcessingStatus;
+}
+
+export interface AdminDocumentVersionHistory {
+  slug: string;
+  title: string;
+  versions: AdminDocumentVersionItem[];
+}
+
+export type AdminDocumentHistoryResult =
+  | { status: "loading" }
+  | {
+      data: Pick<AdminDocumentVersionHistory, "slug" | "title">;
+      status: "empty";
+    }
+  | { data: AdminDocumentVersionHistory; status: "success" };
+
+const ADMIN_DOCUMENT_VERSION_HISTORIES: Record<
+  string,
+  AdminDocumentVersionHistory
+> = {
+  "employee-benefits": {
+    slug: "employee-benefits",
+    title: "Kebijakan Benefit Karyawan",
+    versions: [
+      {
+        createdAt: "2026-07-26T08:30:00.000Z",
+        id: "employee-benefits-v2026-4",
+        isActive: false,
+        label: "2026.4",
+        processingStatus: "processing",
+      },
+      {
+        createdAt: "2026-07-25T08:30:00.000Z",
+        id: "employee-benefits-v2026-3",
+        isActive: true,
+        label: "2026.3",
+        processingStatus: "processed",
+      },
+      {
+        createdAt: "2026-07-24T08:30:00.000Z",
+        id: "employee-benefits-v2026-2",
+        isActive: false,
+        label: "2026.2",
+        processingStatus: "failed",
+      },
+      {
+        createdAt: "2026-07-23T08:30:00.000Z",
+        id: "employee-benefits-v2026-1",
+        isActive: false,
+        label: "2026.1",
+        processingStatus: "processed",
+      },
+    ],
+  },
+};
+
+export function getAdminDocumentVersionHistoryMock(
+  slug: string,
+  scenario: AdminDocumentHistoryScenario
+): AdminDocumentHistoryResult | undefined {
+  const history = ADMIN_DOCUMENT_VERSION_HISTORIES[slug];
+  if (!history) {
+    return;
+  }
+  if (scenario === "loading") {
+    return { status: "loading" };
+  }
+  if (scenario === "empty") {
+    return {
+      data: structuredClone({ slug: history.slug, title: history.title }),
+      status: "empty",
+    };
+  }
+
+  const clonedHistory = structuredClone(history);
+  clonedHistory.versions.sort(
+    (a, b) =>
+      Date.parse(b.createdAt) - Date.parse(a.createdAt) ||
+      a.id.localeCompare(b.id)
+  );
+  return { data: clonedHistory, status: "success" };
+}
