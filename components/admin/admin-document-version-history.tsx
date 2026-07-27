@@ -11,10 +11,12 @@ import type {
 } from "@/lib/mocks";
 
 interface AdminDocumentVersionHistoryProps {
+  restoredVersionId?: string;
   result: AdminDocumentHistoryResult;
 }
 
 export function AdminDocumentVersionHistory({
+  restoredVersionId,
   result,
 }: AdminDocumentVersionHistoryProps) {
   const [versions, setVersions] = useState(() =>
@@ -52,6 +54,16 @@ export function AdminDocumentVersionHistory({
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
+      {restoredVersionId && result.status === "success" ? (
+        <p className="sr-only" role="status">
+          Konteks pratinjau dipulihkan untuk versi{" "}
+          {
+            result.data.versions.find(
+              (version) => version.id === restoredVersionId
+            )?.label
+          }
+        </p>
+      ) : null}
       {result.status === "empty" ? (
         <div className="rounded-lg border p-6">
           <h3 className="font-semibold">Belum ada riwayat versi</h3>
@@ -73,6 +85,7 @@ export function AdminDocumentVersionHistory({
             );
             setAnnouncement("Pemrosesan dicoba lagi dan masuk antrean.");
           }}
+          restoredVersionId={restoredVersionId}
           slug={result.data.slug}
           title={result.data.title}
           versions={versions}
@@ -84,11 +97,13 @@ export function AdminDocumentVersionHistory({
 
 function VersionList({
   onRetry,
+  restoredVersionId,
   slug,
   title,
   versions,
 }: {
   onRetry: (id: string) => void;
+  restoredVersionId?: string;
   slug: string;
   title: string;
   versions: AdminDocumentVersionItem[];
@@ -109,7 +124,11 @@ function VersionList({
         <tbody>
           {versions.map((version) => (
             <tr className="border-t align-top" key={version.id}>
-              <th className="px-4 py-4 text-left" scope="row">
+              <th
+                aria-current={version.id === restoredVersionId || undefined}
+                className="px-4 py-4 text-left"
+                scope="row"
+              >
                 <VersionLabel version={version} />
               </th>
               <td className="px-4 py-4">
@@ -129,7 +148,11 @@ function VersionList({
       </table>
       <ul className="space-y-3 md:hidden">
         {versions.map((version) => (
-          <li className="space-y-3 rounded-lg border p-4" key={version.id}>
+          <li
+            aria-current={version.id === restoredVersionId || undefined}
+            className="space-y-3 rounded-lg border p-4"
+            key={version.id}
+          >
             <VersionLabel version={version} />
             <dl className="space-y-3 text-sm">
               <div>
@@ -212,7 +235,11 @@ function VersionAction({
     return (
       <div className="flex flex-wrap gap-2">
         <Button asChild className={`min-h-11${width}`} variant="outline">
-          <Link href={`/documents/${slug}`}>Pratinjau</Link>
+          <Link
+            href={`/admin/documents/${slug}/preview?version=${encodeURIComponent(version.id)}`}
+          >
+            Pratinjau
+          </Link>
         </Button>
         {version.isActive ? (
           <span>Versi aktif</span>

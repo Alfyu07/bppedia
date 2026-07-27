@@ -149,6 +149,17 @@ export interface AdminDocumentVersionHistory {
   versions: AdminDocumentVersionItem[];
 }
 
+export interface AdminDocumentVersionPreview {
+  generatedPdfStatus: "ready";
+  originalFileType: "DOCX" | "PDF";
+  pageCount: number;
+  pdfHref: string;
+  slug: string;
+  title: string;
+  versionId: string;
+  versionLabel: string;
+}
+
 export type AdminDocumentHistoryResult =
   | { status: "loading" }
   | {
@@ -289,4 +300,30 @@ export function getAdminDocumentVersionHistoryMock(
       a.id.localeCompare(b.id)
   );
   return { data: clonedHistory, status: "success" };
+}
+
+export function getAdminDocumentVersionPreviewMock(
+  slug: string,
+  versionId: string
+): AdminDocumentVersionPreview | undefined {
+  const history = ADMIN_DOCUMENT_VERSION_HISTORIES[slug];
+  const version = history?.versions.find((item) => item.id === versionId);
+  const canonicalDocument = MOCK_DOCUMENT_OVERVIEWS[slug];
+  if (
+    version?.processingStatus !== "ready" ||
+    canonicalDocument?.versionId !== version.id
+  ) {
+    return;
+  }
+
+  return {
+    generatedPdfStatus: "ready",
+    originalFileType: "DOCX",
+    pageCount: canonicalDocument.pageCount,
+    pdfHref: canonicalDocument.pdfHref,
+    slug,
+    title: history.title,
+    versionId: version.id,
+    versionLabel: version.label,
+  };
 }

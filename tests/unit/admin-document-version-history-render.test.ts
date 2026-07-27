@@ -75,7 +75,20 @@ describe("admin document version history presentation", () => {
     assert.equal(occurrences(markup, ">Rollback ke versi ini<"), 2);
     assert.equal(occurrences(markup, ">Pratinjau<"), 4);
     assert.equal(occurrences(markup, ">Coba lagi<"), 2);
-    assert.equal(occurrences(markup, 'href="/documents/employee-benefits"'), 4);
+    assert.equal(
+      occurrences(
+        markup,
+        'href="/admin/documents/employee-benefits/preview?version=employee-benefits-v2026-3"'
+      ),
+      2
+    );
+    assert.equal(
+      occurrences(
+        markup,
+        'href="/admin/documents/employee-benefits/preview?version=employee-benefits-v2026-1"'
+      ),
+      2
+    );
     assert.match(
       markup,
       /Teks dokumen tidak dapat dibaca\. Periksa file lalu coba lagi\./
