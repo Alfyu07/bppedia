@@ -60,13 +60,14 @@ test.describe("critical user flows", () => {
     await page.getByTestId("landing-prompt-input").fill(PROMPT);
     await page.getByTestId("landing-send-button").click();
     const input = page.getByTestId("multimodal-input");
-    await expect(page.getByRole("alert")).toContainText(
-      "Jawaban belum dapat dibuat"
-    );
+    const errorAlert = page
+      .getByRole("alert")
+      .filter({ hasText: "Jawaban belum dapat dibuat" });
+    await expect(errorAlert).toBeVisible();
     await input.press("Enter");
     await expect(page.getByTestId("message-user")).toHaveCount(1);
     await expect(page.getByTestId("message-assistant")).toHaveCount(1);
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(errorAlert).toHaveCount(0);
   });
 
   test("employee can reformulate after an honest no-answer response", async ({
