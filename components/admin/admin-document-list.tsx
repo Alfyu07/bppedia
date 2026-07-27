@@ -28,13 +28,13 @@ interface AdminDocumentListProps {
 type FocusDestination = "primary" | "archived" | null;
 type DocumentActionProps = {
   document: AdminDocumentListItem;
-  onArchive: (slug: string) => void;
+  onArchive: (slug: string, trigger: HTMLButtonElement) => void;
   onRestore: (slug: string) => void;
 };
 type DocumentViewProps = {
   documents: readonly AdminDocumentListItem[];
   label: string;
-  onArchive: (slug: string) => void;
+  onArchive: (slug: string, trigger: HTMLButtonElement) => void;
   onRestore: (slug: string) => void;
 };
 
@@ -137,11 +137,8 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
     searchInputRef.current?.focus();
   }
 
-  function openArchiveDialog(slug: string) {
-    archiveTriggerRef.current =
-      document.activeElement instanceof HTMLButtonElement
-        ? document.activeElement
-        : null;
+  function openArchiveDialog(slug: string, trigger: HTMLButtonElement) {
+    archiveTriggerRef.current = trigger;
     setArchiveCandidateSlug(slug);
   }
 
@@ -486,8 +483,10 @@ function DocumentAction({
     <Button
       aria-label={`${isActive ? "Arsipkan" : "Pulihkan"} ${document.title}`}
       className="min-h-11"
-      onClick={() =>
-        isActive ? onArchive(document.slug) : onRestore(document.slug)
+      onClick={(event) =>
+        isActive
+          ? onArchive(document.slug, event.currentTarget)
+          : onRestore(document.slug)
       }
       type="button"
       variant="outline"

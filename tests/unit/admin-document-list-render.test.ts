@@ -133,7 +133,9 @@ describe("admin document list render contract", () => {
       /destinationRef\.current \?\? searchInputRef\.current/
     );
     assert.doesNotMatch(source, /setFocusDestination/);
-    assert.match(source, /archiveTriggerRef\.current =/);
+    assert.match(source, /archiveTriggerRef\.current = trigger/);
+    assert.match(source, /event\.currentTarget/);
+    assert.doesNotMatch(source, /document\.activeElement/);
     assert.match(source, /onCloseAutoFocus/);
     assert.match(source, /archiveTriggerRef\.current\?\.isConnected/);
   });
