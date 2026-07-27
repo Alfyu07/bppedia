@@ -11,14 +11,23 @@ describe("admin document list mock", () => {
       throw new Error("Expected populated admin documents");
     }
 
-    assert.ok(success.data.documents.length >= 2);
-    assert.ok(
-      success.data.documents.some((document) => document.status === "active")
+    const statuses = new Set(
+      success.data.documents.map((document) => document.status)
+    );
+    assert.deepEqual([...statuses].sort(), [
+      "active",
+      "archived",
+      "failed",
+      "processing",
+    ]);
+    assert.equal(
+      new Set(success.data.documents.map((document) => document.slug)).size,
+      success.data.documents.length
     );
     for (const document of success.data.documents) {
       assert.ok(document.slug.length > 0);
       assert.ok(document.title.length > 0);
-      assert.match(document.updatedAt, /^\d{4}-\d{2}-\d{2}T/);
+      assert.ok(Number.isFinite(Date.parse(document.updatedAt)));
     }
     assert.deepEqual(getAdminDocumentListMock("loading"), {
       status: "loading",
