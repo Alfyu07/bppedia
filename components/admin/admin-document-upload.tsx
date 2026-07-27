@@ -171,6 +171,12 @@ export function AdminDocumentUpload() {
               {queuedUpload.fileName} sedang menunggu pemrosesan untuk{" "}
               {targetTitle(queuedUpload.targetSlug)}.
             </p>
+            <Link
+              className="mt-3 inline-flex min-h-11 items-center text-sm font-medium underline"
+              href={`/admin/documents/${queuedUpload.targetSlug}`}
+            >
+              Lihat status versi
+            </Link>
           </div>
         ) : null}
       </div>

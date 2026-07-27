@@ -125,14 +125,18 @@ export function getAdminDocumentListMock(
 }
 
 export type AdminVersionProcessingStatus =
-  | "processed"
-  | "processing"
+  | "queued"
+  | "converting"
+  | "extracting"
+  | "indexing"
+  | "ready"
   | "failed";
 
 export type AdminDocumentHistoryScenario = "success" | "loading" | "empty";
 
 export interface AdminDocumentVersionItem {
   createdAt: string;
+  failureReason?: string;
   id: string;
   isActive: boolean;
   label: string;
@@ -166,17 +170,19 @@ const ADMIN_DOCUMENT_VERSION_HISTORIES: Record<
         id: "employee-benefits-v2026-4",
         isActive: false,
         label: "2026.4",
-        processingStatus: "processing",
+        processingStatus: "queued",
       },
       {
         createdAt: "2026-07-25T08:30:00.000Z",
         id: "employee-benefits-v2026-3",
         isActive: true,
         label: "2026.3",
-        processingStatus: "processed",
+        processingStatus: "ready",
       },
       {
         createdAt: "2026-07-24T08:30:00.000Z",
+        failureReason:
+          "Teks dokumen tidak dapat dibaca. Periksa file lalu coba lagi.",
         id: "employee-benefits-v2026-2",
         isActive: false,
         label: "2026.2",
@@ -187,7 +193,68 @@ const ADMIN_DOCUMENT_VERSION_HISTORIES: Record<
         id: "employee-benefits-v2026-1",
         isActive: false,
         label: "2026.1",
-        processingStatus: "processed",
+        processingStatus: "ready",
+      },
+      {
+        createdAt: "2026-07-22T08:30:00.000Z",
+        id: "employee-benefits-v2025-9",
+        isActive: false,
+        label: "2025.9",
+        processingStatus: "converting",
+      },
+      {
+        createdAt: "2026-07-21T08:30:00.000Z",
+        id: "employee-benefits-v2025-8",
+        isActive: false,
+        label: "2025.8",
+        processingStatus: "extracting",
+      },
+      {
+        createdAt: "2026-07-20T08:30:00.000Z",
+        id: "employee-benefits-v2025-7",
+        isActive: false,
+        label: "2025.7",
+        processingStatus: "indexing",
+      },
+    ],
+  },
+  "employee-mobility": {
+    slug: "employee-mobility",
+    title: "Panduan Mobilitas Karyawan",
+    versions: [
+      {
+        createdAt: "2026-07-26T08:30:00.000Z",
+        id: "employee-mobility-v2026-2",
+        isActive: false,
+        label: "2026.2",
+        processingStatus: "queued",
+      },
+      {
+        createdAt: "2026-07-20T08:30:00.000Z",
+        id: "employee-mobility-v2026-1",
+        isActive: true,
+        label: "2026.1",
+        processingStatus: "ready",
+      },
+    ],
+  },
+  "employee-travel": {
+    slug: "employee-travel",
+    title: "Pedoman Perjalanan Dinas",
+    versions: [
+      {
+        createdAt: "2026-07-26T08:30:00.000Z",
+        id: "employee-travel-v2026-2",
+        isActive: false,
+        label: "2026.2",
+        processingStatus: "queued",
+      },
+      {
+        createdAt: "2026-07-20T08:30:00.000Z",
+        id: "employee-travel-v2026-1",
+        isActive: true,
+        label: "2026.1",
+        processingStatus: "ready",
       },
     ],
   },

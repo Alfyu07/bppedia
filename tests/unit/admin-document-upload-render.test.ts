@@ -42,5 +42,7 @@ describe("admin document upload render contract", () => {
     assert.match(source, /Ukuran/);
     assert.match(source, /createQueuedUpload/);
     assert.match(source, /Versi masuk antrean/);
+    assert.match(source, /Lihat status versi/);
+    assert.match(source, /queuedUpload\.targetSlug/);
   });
 });

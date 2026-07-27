@@ -61,10 +61,21 @@ describe("admin document version history mock", () => {
     const active = success.data.versions.filter((version) => version.isActive);
 
     assert.equal(active.length, 1);
-    assert.equal(active[0].processingStatus, "processed");
+    assert.equal(active[0].processingStatus, "ready");
+    assert.deepEqual(
+      new Set(success.data.versions.map((version) => version.processingStatus)),
+      new Set([
+        "queued",
+        "converting",
+        "extracting",
+        "indexing",
+        "ready",
+        "failed",
+      ])
+    );
     assert.ok(
       success.data.versions.some(
-        (version) => version.processingStatus === "processing"
+        (version) => version.processingStatus === "queued"
       )
     );
     assert.ok(
@@ -73,7 +84,7 @@ describe("admin document version history mock", () => {
       )
     );
     const eligible = success.data.versions.filter(
-      (version) => version.processingStatus === "processed" && !version.isActive
+      (version) => version.processingStatus === "ready" && !version.isActive
     );
     assert.ok(eligible.length > 0);
   });
