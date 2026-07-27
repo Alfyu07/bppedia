@@ -2,6 +2,16 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { guestRegex, isDevelopmentEnvironment } from "./lib/constants";
 
+export function isPublicFrontendPath(pathname: string): boolean {
+  return (
+    pathname === "/" ||
+    pathname.startsWith("/chat/") ||
+    pathname.startsWith("/documents/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/")
+  );
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -9,11 +19,7 @@ export async function proxy(request: NextRequest) {
     return new Response("pong", { status: 200 });
   }
 
-  if (
-    pathname === "/" ||
-    pathname.startsWith("/chat/") ||
-    pathname.startsWith("/documents/")
-  ) {
+  if (isPublicFrontendPath(pathname)) {
     return NextResponse.next();
   }
 
@@ -39,11 +45,7 @@ export async function proxy(request: NextRequest) {
 
   const isGuest = guestRegex.test(token?.email ?? "");
 
-  if (
-    token &&
-    !isGuest &&
-    ["/login", "/register", "/admin/login"].includes(pathname)
-  ) {
+  if (token && !isGuest && ["/login", "/register"].includes(pathname)) {
     return NextResponse.redirect(new URL(`${base}/admin`, request.url));
   }
 
