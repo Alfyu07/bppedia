@@ -6,6 +6,16 @@ You are building a Next.js 15 App Router application with TypeScript. React Serv
 
 Read `docs/lessons.md` before starting work and before retrying a failed tool call. Append reusable lessons after mistakes.
 
+## Autonomous Delivery Workflow
+
+- `docs/WORKFLOW.md` is the canonical executable delivery workflow. Read it before selecting, starting, reviewing, merging, or handing off work.
+- During an active milestone, use `dev` as the agent-owned integration branch and create issue branches from current `origin/dev`.
+- After all gates pass, Hermes may create and merge issue PRs into `dev` without routine user approval.
+- Never merge `dev` into `main` before the user approves the milestone gate.
+- Interrupt the user only for true blockers defined in `docs/WORKFLOW.md` or a milestone review gate.
+- Rendered desktop/tablet/mobile UI/UX QA is mandatory before handing off any frontend change.
+- Do not claim autonomous work is active unless a real task, process, or subagent is running.
+
 ## Linear Workflow
 
 - Linear workspace and team: `Alfy`.
