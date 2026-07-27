@@ -124,7 +124,10 @@ After all milestone issues are integrated into `dev`:
 
 ## Status communication
 
-- No routine progress chatter during autonomous milestone execution.
+- Send occasional concise progress heartbeats so autonomous work stays visible without requesting a response.
+- Send a heartbeat when starting an issue, after merging it to `dev`, when moving to the next issue or a major phase, and occasionally during long-running work.
+- Use: `ℹ️ Sekarang mengerjakan <issue/phase> — hanya info, tidak perlu respons.`
+- Do not turn heartbeats into approval requests or routine chatter.
 - `🔄` means a real task/process/subagent is active.
 - `⏸` means a true blocker or milestone gate is waiting on the user.
 - `✅` means the requested handoff/gate is complete.
