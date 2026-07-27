@@ -29,9 +29,10 @@ describe("admin document version history presentation", () => {
   test("renders responsive semantic history in newest-first order", () => {
     const markup = renderScenario("success");
 
-    assert.match(markup, /href="\/admin"/);
-    assert.match(markup, /← Kembali ke dokumen BPP/);
-    assert.match(markup, /min-h-11/);
+    assert.match(
+      markup,
+      /<a class="[^"]*min-h-11[^"]*" href="\/admin">← Kembali ke dokumen BPP<\/a>/
+    );
     for (const copy of [
       "Kembali ke dokumen BPP",
       "Kebijakan Benefit Karyawan",
