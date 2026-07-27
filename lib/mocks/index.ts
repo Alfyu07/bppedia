@@ -38,6 +38,8 @@ export type {
   AdminDocumentListItem,
   AdminDocumentListResult,
   AdminDocumentListScenario,
+  AdminDocumentPublishCandidate,
+  AdminDocumentPublishState,
   AdminDocumentStatus,
   AdminDocumentVersionHistory,
   AdminDocumentVersionItem,
@@ -45,8 +47,11 @@ export type {
   AdminVersionProcessingStatus,
 } from "./documents";
 export {
+  applyAdminDocumentPublishMock,
   getAdminDocumentListMock,
+  getAdminDocumentPublishCandidateMock,
   getAdminDocumentVersionHistoryMock,
   getAdminDocumentVersionHistorySlugs,
   getAdminDocumentVersionPreviewMock,
+  parseAdminDocumentPublishStateMock,
 } from "./documents";

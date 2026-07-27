@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  applyAdminDocumentPublishMock,
+  getAdminDocumentListMock,
+  getAdminDocumentPublishCandidateMock,
   getAdminDocumentVersionHistoryMock,
   getAdminDocumentVersionPreviewMock,
 } from "@/lib/mocks";
@@ -63,6 +66,68 @@ describe("admin document version history mock", () => {
       );
     }
   });
+  test("publishes only a ready inactive version with its canonical artifact", () => {
+    assert.deepEqual(
+      getAdminDocumentPublishCandidateMock(
+        "employee-benefits",
+        "employee-benefits-v2026-1"
+      ),
+      {
+        slug: "employee-benefits",
+        title: "Kebijakan Benefit Karyawan",
+        versionId: "employee-benefits-v2026-1",
+        versionLabel: "2026.1",
+      }
+    );
+    for (const versionId of [
+      "employee-benefits-v2026-3",
+      "employee-benefits-v2026-4",
+      "employee-benefits-v2026-2",
+      "missing",
+    ]) {
+      assert.equal(
+        getAdminDocumentPublishCandidateMock("employee-benefits", versionId),
+        undefined
+      );
+    }
+  });
+
+  test("atomically updates document-list and version-history mock state", () => {
+    const list = getAdminDocumentListMock("success");
+    const history = getSuccessHistory();
+    assert.equal(list.status, "success");
+    if (list.status !== "success") {
+      throw new Error("Expected list");
+    }
+
+    const next = applyAdminDocumentPublishMock(
+      { document: list.data.documents[0], versions: history.data.versions },
+      "employee-benefits-v2026-1"
+    );
+
+    assert.notEqual(next, undefined);
+    assert.equal(next?.document.activeVersionLabel, "2026.1");
+    assert.equal(next?.document.status, "active");
+    assert.deepEqual(
+      next?.versions.filter((version) => version.isActive).map(({ id }) => id),
+      ["employee-benefits-v2026-1"]
+    );
+    assert.equal(list.data.documents[0].activeVersionLabel, "2026.1");
+    assert.equal(
+      history.data.versions.find(
+        (version) => version.id === "employee-benefits-v2026-3"
+      )?.isActive,
+      true
+    );
+    assert.equal(
+      applyAdminDocumentPublishMock(
+        { document: list.data.documents[0], versions: history.data.versions },
+        "employee-benefits-v2026-4"
+      ),
+      undefined
+    );
+  });
+
   test("selects success, loading, and empty states for known documents", () => {
     const success = getSuccessHistory();
 

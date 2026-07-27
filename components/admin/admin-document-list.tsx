@@ -20,6 +20,7 @@ import type {
   AdminDocumentListResult,
   AdminDocumentStatus,
 } from "@/lib/mocks";
+import { parseAdminDocumentPublishStateMock } from "@/lib/mocks";
 
 interface AdminDocumentListProps {
   result: AdminDocumentListResult;
@@ -42,6 +43,19 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
   const [documents, setDocuments] = useState<AdminDocumentListItem[]>(() =>
     structuredClone(result.status === "success" ? result.data.documents : [])
   );
+  useEffect(() => {
+    const stored = parseAdminDocumentPublishStateMock(
+      localStorage.getItem("bppedia:admin-publish-state")
+    );
+    if (!stored) {
+      return;
+    }
+    setDocuments((current) =>
+      current.map((document) =>
+        document.slug === stored.document.slug ? stored.document : document
+      )
+    );
+  }, []);
   const [archiveCandidateSlug, setArchiveCandidateSlug] = useState<
     string | null
   >(null);
