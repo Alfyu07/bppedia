@@ -32,3 +32,10 @@ export {
   getMockConversationReply,
   getMockConversationScenario,
 } from "./chat";
+export type {
+  AdminDocumentListItem,
+  AdminDocumentListResult,
+  AdminDocumentListScenario,
+  AdminDocumentStatus,
+} from "./documents";
+export { getAdminDocumentListMock } from "./documents";

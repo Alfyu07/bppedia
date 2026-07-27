@@ -56,3 +56,56 @@ export function getMockDocumentOverview(
 export function getMockDocumentSlugs(): string[] {
   return Object.keys(MOCK_DOCUMENT_OVERVIEWS);
 }
+
+export type AdminDocumentStatus =
+  | "active"
+  | "processing"
+  | "failed"
+  | "archived";
+
+export interface AdminDocumentListItem {
+  activeVersionLabel: string | null;
+  slug: string;
+  status: AdminDocumentStatus;
+  title: string;
+  updatedAt: string;
+}
+
+export type AdminDocumentListScenario = "success" | "loading" | "empty";
+
+export type AdminDocumentListResult =
+  | { status: "loading" }
+  | { status: "empty" }
+  | { status: "success"; data: { documents: AdminDocumentListItem[] } };
+
+const ADMIN_DOCUMENT_LIST: AdminDocumentListItem[] = [
+  {
+    activeVersionLabel: "2026.1",
+    slug: "employee-benefits",
+    status: "active",
+    title: "Kebijakan Benefit Karyawan",
+    updatedAt: "2026-07-24T08:30:00.000Z",
+  },
+  {
+    activeVersionLabel: "2026.1",
+    slug: "employee-mobility",
+    status: "processing",
+    title: "Panduan Mobilitas Karyawan",
+    updatedAt: "2026-07-26T03:15:00.000Z",
+  },
+];
+
+export function getAdminDocumentListMock(
+  scenario: AdminDocumentListScenario
+): AdminDocumentListResult {
+  if (scenario === "loading") {
+    return { status: "loading" };
+  }
+  if (scenario === "empty") {
+    return { status: "empty" };
+  }
+  return {
+    data: { documents: structuredClone(ADMIN_DOCUMENT_LIST) },
+    status: "success",
+  };
+}
