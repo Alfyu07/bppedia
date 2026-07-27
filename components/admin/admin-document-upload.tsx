@@ -10,7 +10,9 @@ import {
   ADMIN_UPLOAD_ACCEPT,
   createQueuedUpload,
   formatUploadSize,
+  normalizeNewDocumentTitle,
   type QueuedUpload,
+  type UploadMode,
   type UploadValidation,
   validateUploadFile,
 } from "@/lib/admin-document-upload";
@@ -19,6 +21,9 @@ export function AdminDocumentUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [validation, setValidation] = useState<UploadValidation | null>(null);
   const [targetSlug, setTargetSlug] = useState<string>(TARGETS[0].slug);
+  const [uploadMode, setUploadMode] = useState<UploadMode>("new-document");
+  const [newDocumentTitle, setNewDocumentTitle] = useState("");
+  const [titleError, setTitleError] = useState("");
   const [queuedUpload, setQueuedUpload] = useState<QueuedUpload | null>(null);
 
   function selectFile(file?: File) {
@@ -33,8 +38,36 @@ export function AdminDocumentUpload() {
 
   function queueVersion(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (selectedFile && validation?.status === "valid") {
-      setQueuedUpload(createQueuedUpload(targetSlug, selectedFile.name));
+    if (!(selectedFile && validation?.status === "valid")) {
+      return;
+    }
+    if (uploadMode === "new-document") {
+      const destination = normalizeNewDocumentTitle(newDocumentTitle);
+      if (destination.status === "invalid") {
+        setTitleError(destination.message);
+        return;
+      }
+      setTitleError("");
+      setQueuedUpload(
+        createQueuedUpload(
+          destination.slug,
+          selectedFile.name,
+          destination.title,
+          uploadMode
+        )
+      );
+      return;
+    }
+    const target = TARGETS.find(({ slug }) => slug === targetSlug);
+    if (target) {
+      setQueuedUpload(
+        createQueuedUpload(
+          target.slug,
+          selectedFile.name,
+          target.title,
+          uploadMode
+        )
+      );
     }
   }
 
@@ -50,8 +83,7 @@ export function AdminDocumentUpload() {
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold">Unggah dokumen BPP</h1>
           <p className="text-muted-foreground">
-            Tambahkan file sebagai versi baru. Pemrosesan hanya disimulasikan di
-            halaman ini.
+            Buat BPP baru atau tambahkan versi ke BPP yang sudah ada.
           </p>
         </div>
       </header>
@@ -99,14 +131,14 @@ export function AdminDocumentUpload() {
           </div>
         ) : null}
 
-        {selectedFile ? (
-          <section
-            aria-labelledby="review-heading"
-            className="space-y-4 rounded-xl border p-5"
-          >
-            <h2 className="text-lg font-semibold" id="review-heading">
-              Tinjau unggahan
-            </h2>
+        <section
+          aria-labelledby="destination-heading"
+          className="space-y-4 rounded-xl border p-5"
+        >
+          <h2 className="text-lg font-semibold" id="destination-heading">
+            Pilih tujuan unggahan
+          </h2>
+          {selectedFile ? (
             <dl className="grid gap-4 text-sm sm:grid-cols-2">
               <Metadata label="Nama file" value={selectedFile.name} />
               <Metadata
@@ -118,6 +150,76 @@ export function AdminDocumentUpload() {
                 value={formatUploadSize(selectedFile.size)}
               />
             </dl>
+          ) : null}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium">Tujuan unggahan</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {UPLOAD_MODES.map((mode) => (
+                <label
+                  className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3"
+                  key={mode.value}
+                >
+                  <input
+                    checked={uploadMode === mode.value}
+                    name="upload-mode"
+                    onChange={() => {
+                      setUploadMode(mode.value);
+                      setQueuedUpload(null);
+                      setTitleError("");
+                    }}
+                    type="radio"
+                    value={mode.value}
+                  />
+                  <span>
+                    <span className="block font-medium">{mode.label}</span>
+                    <span className="block text-sm text-muted-foreground">
+                      {mode.description}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {uploadMode === "new-document" ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="new-bpp-title">
+                Judul BPP baru
+              </label>
+              <input
+                aria-describedby={
+                  titleError ? "new-bpp-title-error" : "new-bpp-title-help"
+                }
+                aria-invalid={Boolean(titleError)}
+                className="flex min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                id="new-bpp-title"
+                maxLength={120}
+                onChange={(event) => {
+                  setNewDocumentTitle(event.currentTarget.value);
+                  setTitleError("");
+                  setQueuedUpload(null);
+                }}
+                placeholder="Contoh: Kebijakan Cuti Karyawan"
+                required
+                value={newDocumentTitle}
+              />
+              {titleError ? (
+                <p
+                  className="text-sm text-destructive"
+                  id="new-bpp-title-error"
+                  role="alert"
+                >
+                  {titleError}
+                </p>
+              ) : (
+                <p
+                  className="text-sm text-muted-foreground"
+                  id="new-bpp-title-help"
+                >
+                  Judul ini akan tampil sebagai dokumen baru di daftar BPP.
+                </p>
+              )}
+            </div>
+          ) : (
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="target-bpp">
                 Target BPP
@@ -129,6 +231,7 @@ export function AdminDocumentUpload() {
                   setTargetSlug(event.currentTarget.value);
                   setQueuedUpload(null);
                 }}
+                required
                 value={targetSlug}
               >
                 {TARGETS.map((target) => (
@@ -141,8 +244,8 @@ export function AdminDocumentUpload() {
                 File akan menjadi versi baru untuk BPP yang dipilih.
               </p>
             </div>
-          </section>
-        ) : null}
+          )}
+        </section>
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button asChild className="min-h-11" variant="outline">
@@ -150,10 +253,16 @@ export function AdminDocumentUpload() {
           </Button>
           <Button
             className="min-h-11"
-            disabled={!selectedFile || queuedUpload !== null}
+            disabled={
+              !selectedFile ||
+              queuedUpload !== null ||
+              (uploadMode === "new-document" && !newDocumentTitle.trim())
+            }
             type="submit"
           >
-            Antrekan versi
+            {uploadMode === "new-document"
+              ? "Buat dan antrekan BPP"
+              : "Antrekan versi"}
           </Button>
         </div>
       </form>
@@ -165,17 +274,25 @@ export function AdminDocumentUpload() {
             role="status"
           >
             <p className="font-medium">
-              Versi masuk antrean · Menunggu pemrosesan
+              {queuedUpload.uploadMode === "new-document"
+                ? "BPP baru masuk antrean · Menunggu pemrosesan"
+                : "Versi masuk antrean · Menunggu pemrosesan"}
             </p>
             <p className="text-sm text-muted-foreground">
               {queuedUpload.fileName} sedang menunggu pemrosesan untuk{" "}
-              {targetTitle(queuedUpload.targetSlug)}.
+              {queuedUpload.targetTitle}.
             </p>
             <Link
               className="mt-3 inline-flex min-h-11 items-center text-sm font-medium underline"
-              href={`/admin/documents/${queuedUpload.targetSlug}`}
+              href={
+                queuedUpload.uploadMode === "new-document"
+                  ? "/admin"
+                  : `/admin/documents/${queuedUpload.targetSlug}`
+              }
             >
-              Lihat status versi
+              {queuedUpload.uploadMode === "new-document"
+                ? "Kembali ke daftar dokumen"
+                : "Lihat status versi"}
             </Link>
           </div>
         ) : null}
@@ -197,12 +314,24 @@ function fileTypeLabel(name: string) {
   return name.split(".").at(-1)?.toUpperCase() ?? "—";
 }
 
-function targetTitle(slug: string) {
-  return TARGETS.find((target) => target.slug === slug)?.title ?? slug;
-}
-
 const TARGETS = [
   { slug: "employee-benefits", title: "Kebijakan Benefit Karyawan" },
   { slug: "employee-mobility", title: "Panduan Mobilitas Karyawan" },
   { slug: "employee-travel", title: "Pedoman Perjalanan Dinas" },
 ] as const;
+const UPLOAD_MODES: readonly {
+  description: string;
+  label: string;
+  value: UploadMode;
+}[] = [
+  {
+    description: "Masukkan judul untuk membuat dokumen BPP baru.",
+    label: "BPP baru",
+    value: "new-document",
+  },
+  {
+    description: "Tambahkan file sebagai versi dari BPP yang sudah ada.",
+    label: "Versi baru",
+    value: "new-version",
+  },
+];

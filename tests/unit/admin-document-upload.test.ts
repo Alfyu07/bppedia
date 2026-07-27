@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import {
   createQueuedUpload,
   formatUploadSize,
+  normalizeNewDocumentTitle,
   validateUploadFile,
 } from "@/lib/admin-document-upload";
 
@@ -54,6 +55,37 @@ describe("admin document upload model", () => {
       fileName: "policy.pdf",
       processingStatus: "queued",
       targetSlug: "employee-benefits",
+      targetTitle: "employee-benefits",
+      uploadMode: "new-version",
     });
+  });
+
+  test("normalizes a required new BPP title into a safe stable slug", () => {
+    assert.deepEqual(normalizeNewDocumentTitle("  Kebijakan   Cuti 2027  "), {
+      slug: "kebijakan-cuti-2027",
+      status: "valid",
+      title: "Kebijakan Cuti 2027",
+    });
+    assert.equal(normalizeNewDocumentTitle("   ").status, "invalid");
+    assert.equal(normalizeNewDocumentTitle("🔥").status, "invalid");
+    assert.equal(normalizeNewDocumentTitle("a".repeat(121)).status, "invalid");
+  });
+
+  test("queues a new BPP with its chosen title and mode", () => {
+    assert.deepEqual(
+      createQueuedUpload(
+        "kebijakan-cuti-2027",
+        "cuti.docx",
+        "Kebijakan Cuti 2027",
+        "new-document"
+      ),
+      {
+        fileName: "cuti.docx",
+        processingStatus: "queued",
+        targetSlug: "kebijakan-cuti-2027",
+        targetTitle: "Kebijakan Cuti 2027",
+        uploadMode: "new-document",
+      }
+    );
   });
 });

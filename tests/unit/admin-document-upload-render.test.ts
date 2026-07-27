@@ -14,7 +14,10 @@ describe("admin document upload render contract", () => {
       "Unggah dokumen BPP",
       "Pilih atau tarik file ke sini",
       "PDF, DOC, atau DOCX hingga 10 MB",
-      "Antrekan versi",
+      "BPP baru",
+      "Versi baru",
+      "Judul BPP baru",
+      "Buat dan antrekan BPP",
     ]) {
       assert.match(markup, new RegExp(copy));
     }
@@ -25,6 +28,9 @@ describe("admin document upload render contract", () => {
     );
     assert.match(markup, /<label[^>]+for="bpp-upload"/);
     assert.match(markup, /aria-live="polite"/);
+    assert.match(markup, /name="upload-mode"/);
+    assert.match(markup, /id="new-bpp-title"/);
+    assert.match(markup, /maxLength="120"/);
   });
 
   test("wires drag selection, validation errors, review, and queued state", () => {
@@ -44,5 +50,9 @@ describe("admin document upload render contract", () => {
     assert.match(source, /Versi masuk antrean/);
     assert.match(source, /Lihat status versi/);
     assert.match(source, /queuedUpload\.targetSlug/);
+    assert.match(source, /normalizeNewDocumentTitle/);
+    assert.match(source, /queuedUpload\.targetTitle/);
+    assert.match(source, /new-document/);
+    assert.match(source, /new-version/);
   });
 });
