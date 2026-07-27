@@ -45,8 +45,11 @@ describe("admin document list render contract", () => {
     assert.match(markup, /type="search"/);
     assert.match(markup, /placeholder="Cari berdasarkan judul…"/);
     assert.equal((markup.match(/type="checkbox"/g) ?? []).length, 4);
-    assert.match(markup, /aria-live="polite"/);
-    assert.match(markup, /4 dokumen ditampilkan/);
+    assert.match(
+      markup,
+      /<p aria-atomic="false" aria-live="polite" class="sr-only">4 dokumen ditampilkan<\/p>/
+    );
+    assert.doesNotMatch(markup, /<div[^>]+aria-live="polite"/);
     assert.doesNotMatch(markup, />Reset filter/);
     assert.ok(
       markup.indexOf("Kebijakan Benefit Karyawan") <

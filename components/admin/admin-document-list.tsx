@@ -156,8 +156,10 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
         </div>
       </section>
 
-      <div aria-atomic="false" aria-live="polite">
-        <p className="sr-only">{resultSummary}</p>
+      <div>
+        <p aria-atomic="false" aria-live="polite" className="sr-only">
+          {resultSummary}
+        </p>
         {visibleDocuments.length === 0 ? (
           <section className="space-y-4 rounded-lg border border-border p-6">
             <div className="space-y-2">
