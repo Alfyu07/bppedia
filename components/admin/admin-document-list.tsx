@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type {
   AdminDocumentListItem,
   AdminDocumentListResult,
+  AdminDocumentStatus,
 } from "@/lib/mocks";
 
 interface AdminDocumentListProps {
@@ -135,6 +136,23 @@ function DocumentLink({ document }: { document: AdminDocumentListItem }) {
 
 function formatDate(value: string) {
   return DATE_FORMATTER.format(new Date(value));
+}
+
+export function filterAdminDocuments(
+  documents: readonly AdminDocumentListItem[],
+  query: string,
+  selectedStatuses: readonly AdminDocumentStatus[]
+): AdminDocumentListItem[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase("id-ID");
+  return documents.filter((document) => {
+    const matchesSearch = document.title
+      .toLocaleLowerCase("id-ID")
+      .includes(normalizedQuery);
+    const matchesStatus =
+      selectedStatuses.length === 0 ||
+      selectedStatuses.includes(document.status);
+    return matchesSearch && matchesStatus;
+  });
 }
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {
