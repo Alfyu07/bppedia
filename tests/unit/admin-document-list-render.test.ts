@@ -26,6 +26,37 @@ describe("admin document list render contract", () => {
     assert.match(markup, /Aktif/);
     assert.match(markup, /href="\/admin\/documents\/employee-benefits"/);
     assert.match(markup, /href="\/admin\/documents\/upload"/);
+    for (const copy of [
+      "Filter dokumen",
+      "Cari judul BPP",
+      "Status dokumen",
+      "Pilih satu atau beberapa status.",
+      "Aktif",
+      "Diproses",
+      "Gagal",
+      "Diarsipkan",
+      "Kebijakan Benefit Karyawan",
+      "Panduan Mobilitas Karyawan",
+      "Pedoman Perjalanan Dinas",
+      "Kode Etik Karyawan",
+    ]) {
+      assert.match(markup, new RegExp(copy));
+    }
+    assert.match(markup, /type="search"/);
+    assert.match(markup, /placeholder="Cari berdasarkan judul…"/);
+    assert.equal((markup.match(/type="checkbox"/g) ?? []).length, 4);
+    assert.match(
+      markup,
+      /<p aria-atomic="false" aria-live="polite" class="sr-only">4 dokumen ditampilkan<\/p>/
+    );
+    assert.doesNotMatch(markup, /<div[^>]+aria-live="polite"/);
+    assert.doesNotMatch(markup, />Reset filter/);
+    assert.ok(
+      markup.indexOf("Kebijakan Benefit Karyawan") <
+        markup.indexOf("Panduan Mobilitas Karyawan")
+    );
+    assert.match(markup, /class="[^"]*md:table[^"]*"/);
+    assert.match(markup, /class="[^"]*md:hidden[^"]*"/);
   });
 
   test("renders explicit loading and empty states", () => {
@@ -36,5 +67,9 @@ describe("admin document list render contract", () => {
     assert.match(loading, /Memuat dokumen BPP/);
     assert.match(empty, /Belum ada dokumen BPP/);
     assert.match(empty, /href="\/admin\/documents\/upload"/);
+    for (const markup of [loading, empty]) {
+      assert.doesNotMatch(markup, /Cari judul BPP/);
+      assert.doesNotMatch(markup, /Status dokumen/);
+    }
   });
 });

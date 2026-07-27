@@ -93,6 +93,20 @@ const ADMIN_DOCUMENT_LIST: AdminDocumentListItem[] = [
     title: "Panduan Mobilitas Karyawan",
     updatedAt: "2026-07-26T03:15:00.000Z",
   },
+  {
+    activeVersionLabel: null,
+    slug: "employee-travel",
+    status: "failed",
+    title: "Pedoman Perjalanan Dinas",
+    updatedAt: "2026-07-25T06:45:00.000Z",
+  },
+  {
+    activeVersionLabel: "2025.3",
+    slug: "employee-conduct",
+    status: "archived",
+    title: "Kode Etik Karyawan",
+    updatedAt: "2026-07-22T02:00:00.000Z",
+  },
 ];
 
 export function getAdminDocumentListMock(
