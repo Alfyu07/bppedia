@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { filterAdminDocuments } from "@/components/admin/admin-document-list";
+import {
+  filterAdminDocuments,
+  updateAdminDocumentStatus,
+} from "@/components/admin/admin-document-list";
 import { getAdminDocumentListMock } from "@/lib/mocks";
 
 const result = getAdminDocumentListMock("success");
@@ -48,6 +51,37 @@ describe("admin document list filtering", () => {
       filterAdminDocuments(documents, "mobilitas", ["failed"]),
       []
     );
+  });
+
+  test("filters transitioned archive and restore statuses", () => {
+    const archived = updateAdminDocumentStatus(
+      documents,
+      "employee-benefits",
+      "archived"
+    );
+
+    assert.deepEqual(slugs(filterAdminDocuments(archived, "", ["active"])), []);
+    assert.deepEqual(slugs(filterAdminDocuments(archived, "", ["archived"])), [
+      "employee-benefits",
+      "employee-conduct",
+    ]);
+    assert.deepEqual(
+      slugs(filterAdminDocuments(archived, "benefit", ["archived"])),
+      ["employee-benefits"]
+    );
+
+    const restored = updateAdminDocumentStatus(
+      archived,
+      "employee-benefits",
+      "active"
+    );
+
+    assert.deepEqual(slugs(filterAdminDocuments(restored, "", ["active"])), [
+      "employee-benefits",
+    ]);
+    assert.deepEqual(slugs(filterAdminDocuments(restored, "", ["archived"])), [
+      "employee-conduct",
+    ]);
   });
 
   test("preserves source order and does not mutate fixtures", () => {

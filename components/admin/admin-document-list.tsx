@@ -1,8 +1,19 @@
+// biome-ignore-all lint/performance/noJsxPropsBind: local controls require document/status/event values.
 "use client";
 
 import { Upload } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import type {
   AdminDocumentListItem,
@@ -14,12 +25,48 @@ interface AdminDocumentListProps {
   result: AdminDocumentListResult;
 }
 
+type FocusDestination = "primary" | "archived" | null;
+type DocumentActionProps = {
+  document: AdminDocumentListItem;
+  onArchive: (slug: string, trigger: HTMLButtonElement) => void;
+  onRestore: (slug: string) => void;
+};
+type DocumentViewProps = {
+  documents: readonly AdminDocumentListItem[];
+  label: string;
+  onArchive: (slug: string, trigger: HTMLButtonElement) => void;
+  onRestore: (slug: string) => void;
+};
+
 export function AdminDocumentList({ result }: AdminDocumentListProps) {
+  const [documents, setDocuments] = useState<AdminDocumentListItem[]>(() =>
+    structuredClone(result.status === "success" ? result.data.documents : [])
+  );
+  const [archiveCandidateSlug, setArchiveCandidateSlug] = useState<
+    string | null
+  >(null);
+
   const [query, setQuery] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<
     AdminDocumentStatus[]
   >([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const primaryHeadingRef = useRef<HTMLHeadingElement>(null);
+  const archivedHeadingRef = useRef<HTMLHeadingElement>(null);
+  const archiveTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const pendingFocusDestinationRef = useRef<FocusDestination>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: document commits trigger pending focus after destination sections render.
+  useEffect(() => {
+    const focusDestination = pendingFocusDestinationRef.current;
+    if (!focusDestination) {
+      return;
+    }
+    const destinationRef =
+      focusDestination === "primary" ? primaryHeadingRef : archivedHeadingRef;
+    (destinationRef.current ?? searchInputRef.current)?.focus();
+    pendingFocusDestinationRef.current = null;
+  }, [documents]);
 
   if (result.status === "loading") {
     return (
@@ -53,17 +100,28 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
     );
   }
 
-  const visibleDocuments = filterAdminDocuments(
-    result.data.documents,
+  const filteredDocuments = filterAdminDocuments(
+    documents,
     query,
     selectedStatuses
   );
+  const visibleDocuments = filteredDocuments.filter(
+    (document) => document.status !== "archived"
+  );
+  const visibleArchivedDocuments = filteredDocuments.filter(
+    (document) => document.status === "archived"
+  );
+  const visibleTotal =
+    visibleDocuments.length + visibleArchivedDocuments.length;
   const hasActiveFilters =
     query.trim().length > 0 || selectedStatuses.length > 0;
   const resultSummary =
-    visibleDocuments.length === 0
+    visibleTotal === 0
       ? "Tidak ada dokumen yang cocok"
-      : `${visibleDocuments.length} dokumen ditampilkan`;
+      : `${visibleTotal} dokumen ditampilkan`;
+  const archiveCandidate = documents.find(
+    (document) => document.slug === archiveCandidateSlug
+  );
 
   function toggleStatus(status: AdminDocumentStatus) {
     setSelectedStatuses((current) =>
@@ -77,6 +135,36 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
     setQuery("");
     setSelectedStatuses([]);
     searchInputRef.current?.focus();
+  }
+
+  function openArchiveDialog(slug: string, trigger: HTMLButtonElement) {
+    archiveTriggerRef.current = trigger;
+    setArchiveCandidateSlug(slug);
+  }
+
+  function archiveDocument() {
+    setDocuments((current) => {
+      const candidate = current.find(
+        (document) => document.slug === archiveCandidateSlug
+      );
+      if (candidate?.status !== "active") {
+        return current;
+      }
+      pendingFocusDestinationRef.current = "archived";
+      return updateAdminDocumentStatus(current, candidate.slug, "archived");
+    });
+    setArchiveCandidateSlug(null);
+  }
+
+  function restoreDocument(slug: string) {
+    setDocuments((current) => {
+      const candidate = current.find((document) => document.slug === slug);
+      if (candidate?.status !== "archived") {
+        return current;
+      }
+      pendingFocusDestinationRef.current = "primary";
+      return updateAdminDocumentStatus(current, candidate.slug, "active");
+    });
   }
 
   return (
@@ -112,7 +200,6 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
             <input
               className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               id="document-search"
-              // biome-ignore lint/performance/noJsxPropsBind: controlled input requires the event value.
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Cari berdasarkan judul…"
               ref={searchInputRef}
@@ -133,7 +220,6 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
                 >
                   <input
                     checked={selectedStatuses.includes(option.value)}
-                    // biome-ignore lint/performance/noJsxPropsBind: checkbox closes over its typed status.
                     onChange={() => toggleStatus(option.value)}
                     type="checkbox"
                   />
@@ -142,10 +228,9 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
               ))}
             </div>
           </fieldset>
-          {hasActiveFilters && visibleDocuments.length > 0 ? (
+          {hasActiveFilters && visibleTotal > 0 ? (
             <Button
               className="min-h-11"
-              // biome-ignore lint/performance/noJsxPropsBind: local handler resets state and focus.
               onClick={resetFilters}
               type="button"
               variant="outline"
@@ -156,11 +241,11 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
         </div>
       </section>
 
-      <div>
+      <div className="space-y-8">
         <p aria-atomic="false" aria-live="polite" className="sr-only">
           {resultSummary}
         </p>
-        {visibleDocuments.length === 0 ? (
+        {visibleTotal === 0 ? (
           <section className="space-y-4 rounded-lg border border-border p-6">
             <div className="space-y-2">
               <h2 className="text-xl font-semibold">
@@ -172,7 +257,6 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
             </div>
             <Button
               className="min-h-11"
-              // biome-ignore lint/performance/noJsxPropsBind: local handler resets state and focus.
               onClick={resetFilters}
               type="button"
               variant="outline"
@@ -180,75 +264,235 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
               Reset filter
             </Button>
           </section>
-        ) : (
-          <>
-            <table className="hidden w-full border-collapse md:table">
-              <caption className="sr-only">Daftar dokumen BPP</caption>
-              <thead>
-                <tr className="border-b border-border text-left text-sm">
-                  <th className="px-4 py-3 font-medium" scope="col">
-                    Dokumen BPP
-                  </th>
-                  <th className="px-4 py-3 font-medium" scope="col">
-                    Versi aktif
-                  </th>
-                  <th className="px-4 py-3 font-medium" scope="col">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 font-medium" scope="col">
-                    Terakhir diperbarui
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleDocuments.map((document) => (
-                  <tr className="border-b border-border" key={document.slug}>
-                    <th className="px-4 py-4 text-left font-medium" scope="row">
-                      <DocumentLink document={document} />
-                    </th>
-                    <td className="px-4 py-4">
-                      {document.activeVersionLabel ?? "Belum ada"}
-                    </td>
-                    <td className="px-4 py-4">
-                      {STATUS_LABELS[document.status]}
-                    </td>
-                    <td className="px-4 py-4">
-                      {formatDate(document.updatedAt)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <ul className="space-y-3 md:hidden">
-              {visibleDocuments.map((document) => (
-                <li
-                  className="space-y-4 rounded-lg border border-border p-4"
-                  key={document.slug}
-                >
-                  <DocumentLink document={document} />
-                  <dl className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <dt className="text-muted-foreground">Versi aktif</dt>
-                      <dd>{document.activeVersionLabel ?? "Belum ada"}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Status</dt>
-                      <dd>{STATUS_LABELS[document.status]}</dd>
-                    </div>
-                    <div className="col-span-2">
-                      <dt className="text-muted-foreground">
-                        Terakhir diperbarui
-                      </dt>
-                      <dd>{formatDate(document.updatedAt)}</dd>
-                    </div>
-                  </dl>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
+        ) : null}
+        {visibleDocuments.length > 0 ? (
+          <section
+            aria-labelledby="primary-documents-heading"
+            className="space-y-4"
+          >
+            <h2
+              className="text-xl font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              id="primary-documents-heading"
+              ref={primaryHeadingRef}
+              tabIndex={-1}
+            >
+              Dokumen BPP
+            </h2>
+            <DocumentTable
+              documents={visibleDocuments}
+              label="Daftar dokumen BPP"
+              onArchive={openArchiveDialog}
+              onRestore={restoreDocument}
+            />
+            <DocumentCards
+              documents={visibleDocuments}
+              label="Daftar dokumen BPP"
+              onArchive={openArchiveDialog}
+              onRestore={restoreDocument}
+            />
+          </section>
+        ) : null}
+        {visibleArchivedDocuments.length > 0 ? (
+          <section
+            aria-labelledby="archived-documents-heading"
+            className="space-y-4 border-t border-border pt-8"
+          >
+            <div className="space-y-2">
+              <h2
+                className="text-xl font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                id="archived-documents-heading"
+                ref={archivedHeadingRef}
+                tabIndex={-1}
+              >
+                Dokumen diarsipkan
+              </h2>
+              <p className="text-muted-foreground">
+                Dokumen ini tidak digunakan dalam pencarian atau jawaban chat
+                karyawan hingga dipulihkan.
+              </p>
+            </div>
+            <DocumentTable
+              documents={visibleArchivedDocuments}
+              label="Daftar dokumen BPP diarsipkan"
+              onArchive={openArchiveDialog}
+              onRestore={restoreDocument}
+            />
+            <DocumentCards
+              documents={visibleArchivedDocuments}
+              label="Daftar dokumen BPP diarsipkan"
+              onArchive={openArchiveDialog}
+              onRestore={restoreDocument}
+            />
+          </section>
+        ) : null}
       </div>
+
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setArchiveCandidateSlug(null);
+          }
+        }}
+        open={archiveCandidateSlug !== null}
+      >
+        {archiveCandidate ? (
+          <AlertDialogContent
+            onCloseAutoFocus={(event) => {
+              if (archiveTriggerRef.current?.isConnected) {
+                event.preventDefault();
+                archiveTriggerRef.current.focus();
+              }
+              archiveTriggerRef.current = null;
+            }}
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>Arsipkan BPP?</AlertDialogTitle>
+              <AlertDialogDescription>
+                “{archiveCandidate.title}” tidak akan digunakan dalam pencarian
+                atau jawaban chat karyawan setelah diarsipkan. Dokumen tetap
+                tersedia di bagian Dokumen diarsipkan dan dapat dipulihkan kapan
+                saja.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="min-h-11">Batal</AlertDialogCancel>
+              <AlertDialogAction
+                className="min-h-11"
+                onClick={archiveDocument}
+                variant="destructive"
+              >
+                Arsipkan BPP
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        ) : null}
+      </AlertDialog>
     </section>
+  );
+}
+
+function DocumentTable({
+  documents,
+  label,
+  onArchive,
+  onRestore,
+}: DocumentViewProps) {
+  return (
+    <table className="hidden w-full border-collapse md:table">
+      <caption className="sr-only">{label}</caption>
+      <thead>
+        <tr className="border-b border-border text-left text-sm">
+          <th className="px-4 py-3 font-medium" scope="col">
+            Dokumen BPP
+          </th>
+          <th className="px-4 py-3 font-medium" scope="col">
+            Versi aktif
+          </th>
+          <th className="px-4 py-3 font-medium" scope="col">
+            Status
+          </th>
+          <th className="px-4 py-3 font-medium" scope="col">
+            Terakhir diperbarui
+          </th>
+          <th className="px-4 py-3 text-right font-medium" scope="col">
+            Aksi
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {documents.map((document) => (
+          <tr className="border-b border-border" key={document.slug}>
+            <th className="px-4 py-4 text-left font-medium" scope="row">
+              <DocumentLink document={document} />
+            </th>
+            <td className="px-4 py-4">
+              {document.activeVersionLabel ?? "Belum ada"}
+            </td>
+            <td className="px-4 py-4">{STATUS_LABELS[document.status]}</td>
+            <td className="px-4 py-4">{formatDate(document.updatedAt)}</td>
+            <td className="px-4 py-4 text-right">
+              <DocumentAction
+                document={document}
+                onArchive={onArchive}
+                onRestore={onRestore}
+              />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function DocumentCards({
+  documents,
+  label,
+  onArchive,
+  onRestore,
+}: DocumentViewProps) {
+  return (
+    <ul aria-label={label} className="space-y-3 md:hidden">
+      {documents.map((document) => (
+        <li
+          className="space-y-4 rounded-lg border border-border p-4"
+          key={document.slug}
+        >
+          <DocumentLink document={document} />
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt className="text-muted-foreground">Versi aktif</dt>
+              <dd>{document.activeVersionLabel ?? "Belum ada"}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Status</dt>
+              <dd>{STATUS_LABELS[document.status]}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-muted-foreground">Terakhir diperbarui</dt>
+              <dd>{formatDate(document.updatedAt)}</dd>
+            </div>
+            {document.status === "active" || document.status === "archived" ? (
+              <div className="col-span-2 space-y-2">
+                <dt className="text-muted-foreground">Aksi</dt>
+                <dd>
+                  <DocumentAction
+                    document={document}
+                    onArchive={onArchive}
+                    onRestore={onRestore}
+                  />
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function DocumentAction({
+  document,
+  onArchive,
+  onRestore,
+}: DocumentActionProps) {
+  if (document.status !== "active" && document.status !== "archived") {
+    return null;
+  }
+  const isActive = document.status === "active";
+  return (
+    <Button
+      aria-label={`${isActive ? "Arsipkan" : "Pulihkan"} ${document.title}`}
+      className="min-h-11"
+      onClick={(event) =>
+        isActive
+          ? onArchive(document.slug, event.currentTarget)
+          : onRestore(document.slug)
+      }
+      type="button"
+      variant="outline"
+    >
+      {isActive ? "Arsipkan" : "Pulihkan"}
+    </Button>
   );
 }
 
@@ -266,6 +510,16 @@ function DocumentLink({ document }: { document: AdminDocumentListItem }) {
 
 function formatDate(value: string) {
   return DATE_FORMATTER.format(new Date(value));
+}
+
+export function updateAdminDocumentStatus(
+  documents: readonly AdminDocumentListItem[],
+  slug: string,
+  status: "active" | "archived"
+): AdminDocumentListItem[] {
+  return documents.map((document) =>
+    document.slug === slug ? { ...document, status } : document
+  );
 }
 
 export function filterAdminDocuments(
