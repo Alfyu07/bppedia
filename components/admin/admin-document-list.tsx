@@ -53,6 +53,7 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const primaryHeadingRef = useRef<HTMLHeadingElement>(null);
   const archivedHeadingRef = useRef<HTMLHeadingElement>(null);
+  const archiveTriggerRef = useRef<HTMLButtonElement | null>(null);
   const pendingFocusDestinationRef = useRef<FocusDestination>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: document commits trigger pending focus after destination sections render.
@@ -134,6 +135,14 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
     setQuery("");
     setSelectedStatuses([]);
     searchInputRef.current?.focus();
+  }
+
+  function openArchiveDialog(slug: string) {
+    archiveTriggerRef.current =
+      document.activeElement instanceof HTMLButtonElement
+        ? document.activeElement
+        : null;
+    setArchiveCandidateSlug(slug);
   }
 
   function archiveDocument() {
@@ -275,13 +284,13 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
             <DocumentTable
               documents={visibleDocuments}
               label="Daftar dokumen BPP"
-              onArchive={setArchiveCandidateSlug}
+              onArchive={openArchiveDialog}
               onRestore={restoreDocument}
             />
             <DocumentCards
               documents={visibleDocuments}
               label="Daftar dokumen BPP"
-              onArchive={setArchiveCandidateSlug}
+              onArchive={openArchiveDialog}
               onRestore={restoreDocument}
             />
           </section>
@@ -308,13 +317,13 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
             <DocumentTable
               documents={visibleArchivedDocuments}
               label="Daftar dokumen BPP diarsipkan"
-              onArchive={setArchiveCandidateSlug}
+              onArchive={openArchiveDialog}
               onRestore={restoreDocument}
             />
             <DocumentCards
               documents={visibleArchivedDocuments}
               label="Daftar dokumen BPP diarsipkan"
-              onArchive={setArchiveCandidateSlug}
+              onArchive={openArchiveDialog}
               onRestore={restoreDocument}
             />
           </section>
@@ -330,7 +339,15 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
         open={archiveCandidateSlug !== null}
       >
         {archiveCandidate ? (
-          <AlertDialogContent>
+          <AlertDialogContent
+            onCloseAutoFocus={(event) => {
+              if (archiveTriggerRef.current?.isConnected) {
+                event.preventDefault();
+                archiveTriggerRef.current.focus();
+              }
+              archiveTriggerRef.current = null;
+            }}
+          >
             <AlertDialogHeader>
               <AlertDialogTitle>Arsipkan BPP?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -341,8 +358,9 @@ export function AdminDocumentList({ result }: AdminDocumentListProps) {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogCancel className="min-h-11">Batal</AlertDialogCancel>
               <AlertDialogAction
+                className="min-h-11"
                 onClick={archiveDocument}
                 variant="destructive"
               >

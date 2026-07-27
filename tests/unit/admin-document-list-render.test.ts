@@ -133,5 +133,8 @@ describe("admin document list render contract", () => {
       /destinationRef\.current \?\? searchInputRef\.current/
     );
     assert.doesNotMatch(source, /setFocusDestination/);
+    assert.match(source, /archiveTriggerRef\.current =/);
+    assert.match(source, /onCloseAutoFocus/);
+    assert.match(source, /archiveTriggerRef\.current\?\.isConnected/);
   });
 });
