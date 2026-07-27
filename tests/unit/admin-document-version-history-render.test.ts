@@ -38,10 +38,13 @@ describe("admin document version history presentation", () => {
       "Kebijakan Benefit Karyawan",
       "Riwayat versi BPP",
       "Riwayat versi",
-      "Selesai diproses",
-      "Sedang diproses",
+      "Menunggu giliran",
+      "Menyiapkan file",
+      "Membaca isi",
+      "Menyiapkan pencarian",
+      "Siap digunakan",
       "Pemrosesan gagal",
-      "Versi ini belum dapat digunakan.",
+      "Versi aktif tetap digunakan",
     ]) {
       assert.match(markup, new RegExp(copy));
     }
@@ -70,27 +73,15 @@ describe("admin document version history presentation", () => {
     assert.equal(occurrences(markup, ">Aktif<"), 2);
     assert.equal(occurrences(markup, ">Versi aktif<"), 2);
     assert.equal(occurrences(markup, ">Rollback ke versi ini<"), 2);
-    assert.equal(
-      occurrences(markup, 'aria-label="Rollback ke Versi 2026.1"'),
-      2
-    );
-    assert.equal(occurrences(markup, 'type="button"'), 2);
-    assert.equal(occurrences(markup, "Tersedia setelah pemrosesan selesai"), 2);
-    assert.equal(
-      occurrences(markup, "Tidak tersedia karena pemrosesan gagal"),
-      2
-    );
-    for (const label of ["2026.2", "2026.3", "2026.4"]) {
-      assert.doesNotMatch(
-        markup,
-        new RegExp(`aria-label="Rollback ke Versi ${label}"`)
-      );
-    }
-    assert.doesNotMatch(
+    assert.equal(occurrences(markup, ">Pratinjau<"), 4);
+    assert.equal(occurrences(markup, ">Coba lagi<"), 2);
+    assert.equal(occurrences(markup, 'href="/documents/employee-benefits"'), 4);
+    assert.match(
       markup,
-      / disabled(?:=|\s)|<form|href="[^"]*rollback|onClick/i
+      /Teks dokumen tidak dapat dibaca\. Periksa file lalu coba lagi\./
     );
-    assert.doesNotMatch(markup, /stack|trace|provider|error code|retry/i);
+    assert.match(markup, /aria-live="polite"/);
+    assert.doesNotMatch(markup, /stack|trace|provider|error code/i);
   });
 
   test("renders an accessible loading state", () => {

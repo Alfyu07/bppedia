@@ -1,4 +1,8 @@
+// biome-ignore-all lint/performance/noJsxPropsBind: local retry controls require version ids.
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
@@ -13,19 +17,17 @@ interface AdminDocumentVersionHistoryProps {
 export function AdminDocumentVersionHistory({
   result,
 }: AdminDocumentVersionHistoryProps) {
+  const [versions, setVersions] = useState(() =>
+    result.status === "success" ? structuredClone(result.data.versions) : []
+  );
+  const [announcement, setAnnouncement] = useState("");
   if (result.status === "loading") {
     return (
       <section aria-busy="true" className="space-y-4" role="status">
-        <p className="text-sm text-muted-foreground">Memuat riwayat versi…</p>
-        <div className="space-y-3">
-          {LOADING_PLACEHOLDERS.map((placeholder) => (
-            <div className="h-16 rounded-lg bg-muted" key={placeholder} />
-          ))}
-        </div>
+        <p>Memuat riwayat versi…</p>
       </section>
     );
   }
-
   return (
     <section className="space-y-6">
       <header className="space-y-3">
@@ -35,24 +37,45 @@ export function AdminDocumentVersionHistory({
         >
           ← Kembali ke dokumen BPP
         </Link>
-        <div className="space-y-2">
+        <div>
           <h1 className="text-2xl font-semibold">{result.data.title}</h1>
           <p className="text-muted-foreground">Riwayat versi BPP</p>
         </div>
       </header>
       <h2 className="text-xl font-semibold">Riwayat versi</h2>
-
+      {result.status === "success" ? (
+        <p className="rounded-lg border border-blue-600/30 bg-blue-500/5 p-4 text-sm">
+          Versi aktif tetap digunakan selama versi baru diproses atau jika
+          pemrosesan gagal.
+        </p>
+      ) : null}
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
       {result.status === "empty" ? (
-        <div className="space-y-2 rounded-lg border border-border p-6">
+        <div className="rounded-lg border p-6">
           <h3 className="font-semibold">Belum ada riwayat versi</h3>
-          <p className="text-muted-foreground">
-            Versi akan muncul setelah dokumen BPP diunggah dan diproses.
-          </p>
+          <p>Versi akan muncul setelah dokumen BPP diunggah dan diproses.</p>
         </div>
       ) : (
         <VersionList
+          onRetry={(id) => {
+            setVersions((current) =>
+              current.map((version) =>
+                version.id === id
+                  ? {
+                      ...version,
+                      failureReason: undefined,
+                      processingStatus: "queued",
+                    }
+                  : version
+              )
+            );
+            setAnnouncement("Pemrosesan dicoba lagi dan masuk antrean.");
+          }}
+          slug={result.data.slug}
           title={result.data.title}
-          versions={result.data.versions}
+          versions={versions}
         />
       )}
     </section>
@@ -60,9 +83,13 @@ export function AdminDocumentVersionHistory({
 }
 
 function VersionList({
+  onRetry,
+  slug,
   title,
   versions,
 }: {
+  onRetry: (id: string) => void;
+  slug: string;
   title: string;
   versions: AdminDocumentVersionItem[];
 }) {
@@ -71,9 +98,9 @@ function VersionList({
       <table className="hidden w-full border-collapse md:table">
         <caption className="sr-only">Riwayat versi {title}</caption>
         <thead>
-          <tr className="border-b border-border text-left text-sm">
+          <tr>
             {TABLE_HEADERS.map((header) => (
-              <th className="px-4 py-3 font-medium" key={header} scope="col">
+              <th className="px-4 py-3 text-left" key={header} scope="col">
                 {header}
               </th>
             ))}
@@ -81,8 +108,8 @@ function VersionList({
         </thead>
         <tbody>
           {versions.map((version) => (
-            <tr className="border-b border-border align-top" key={version.id}>
-              <th className="px-4 py-4 text-left font-medium" scope="row">
+            <tr className="border-t align-top" key={version.id}>
+              <th className="px-4 py-4 text-left" scope="row">
                 <VersionLabel version={version} />
               </th>
               <td className="px-4 py-4">
@@ -90,23 +117,21 @@ function VersionList({
               </td>
               <td className="px-4 py-4">{formatDate(version.createdAt)}</td>
               <td className="px-4 py-4">
-                <VersionAction version={version} />
+                <VersionAction
+                  onRetry={onRetry}
+                  slug={slug}
+                  version={version}
+                />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-
       <ul className="space-y-3 md:hidden">
         {versions.map((version) => (
-          <li
-            className="space-y-4 rounded-lg border border-border p-4"
-            key={version.id}
-          >
-            <h3 className="font-medium">
-              <VersionLabel version={version} />
-            </h3>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
+          <li className="space-y-3 rounded-lg border p-4" key={version.id}>
+            <VersionLabel version={version} />
+            <dl className="space-y-3 text-sm">
               <div>
                 <dt className="text-muted-foreground">Status</dt>
                 <dd>
@@ -117,10 +142,15 @@ function VersionList({
                 <dt className="text-muted-foreground">Ditambahkan</dt>
                 <dd>{formatDate(version.createdAt)}</dd>
               </div>
-              <div className="col-span-2">
+              <div>
                 <dt className="text-muted-foreground">Tindakan</dt>
-                <dd className="mt-1">
-                  <VersionAction isMobile version={version} />
+                <dd>
+                  <VersionAction
+                    isMobile
+                    onRetry={onRetry}
+                    slug={slug}
+                    version={version}
+                  />
                 </dd>
               </div>
             </dl>
@@ -133,56 +163,73 @@ function VersionList({
 
 function VersionLabel({ version }: { version: AdminDocumentVersionItem }) {
   return (
-    <span className="flex flex-wrap items-center gap-2">
+    <span className="flex flex-wrap gap-2">
       Versi {version.label}
       {version.isActive ? <Badge variant="success">Aktif</Badge> : null}
     </span>
   );
 }
-
 function VersionStatus({ version }: { version: AdminDocumentVersionItem }) {
-  if (version.processingStatus === "failed") {
-    return (
-      <span className="space-y-1">
-        <Badge variant="error">Pemrosesan gagal</Badge>
-        <span className="block text-sm text-muted-foreground">
-          Versi ini belum dapat digunakan.
-        </span>
+  const copy = STATUS_COPY[version.processingStatus];
+  return (
+    <span className="space-y-1">
+      <Badge
+        variant={version.processingStatus === "failed" ? "error" : "secondary"}
+      >
+        {copy.label}
+      </Badge>
+      <span className="block text-sm text-muted-foreground">
+        {version.failureReason ?? copy.description}
       </span>
-    );
-  }
-  return version.processingStatus === "processed"
-    ? "Selesai diproses"
-    : "Sedang diproses";
+    </span>
+  );
 }
-
 function VersionAction({
   isMobile = false,
+  onRetry,
+  slug,
   version,
 }: {
   isMobile?: boolean;
+  onRetry: (id: string) => void;
+  slug: string;
   version: AdminDocumentVersionItem;
 }) {
-  if (version.processingStatus === "processed" && !version.isActive) {
+  const width = isMobile ? " w-full" : "";
+  if (version.processingStatus === "failed") {
     return (
       <Button
-        aria-label={`Rollback ke Versi ${version.label}`}
-        className={`min-h-11 whitespace-normal${isMobile ? " w-full" : ""}`}
+        className={`min-h-11${width}`}
+        onClick={() => onRetry(version.id)}
         type="button"
         variant="outline"
       >
-        Rollback ke versi ini
+        Coba lagi
       </Button>
     );
   }
-  if (version.isActive) {
-    return "Versi aktif";
+  if (version.processingStatus === "ready") {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <Button asChild className={`min-h-11${width}`} variant="outline">
+          <Link href={`/documents/${slug}`}>Pratinjau</Link>
+        </Button>
+        {version.isActive ? (
+          <span>Versi aktif</span>
+        ) : (
+          <Button
+            className={`min-h-11${width}`}
+            type="button"
+            variant="outline"
+          >
+            Rollback ke versi ini
+          </Button>
+        )}
+      </div>
+    );
   }
-  return version.processingStatus === "processing"
-    ? "Tersedia setelah pemrosesan selesai"
-    : "Tidak tersedia karena pemrosesan gagal";
+  return "Tersedia setelah pemrosesan selesai";
 }
-
 function formatDate(value: string) {
   return DATE_FORMATTER.format(new Date(value));
 }
@@ -190,5 +237,30 @@ function formatDate(value: string) {
 const DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
 });
-const LOADING_PLACEHOLDERS = ["first", "second", "third", "fourth"] as const;
 const TABLE_HEADERS = ["Versi", "Status", "Ditambahkan", "Tindakan"] as const;
+const STATUS_COPY = {
+  converting: {
+    description: "File sedang diubah ke format yang dapat dibaca.",
+    label: "Menyiapkan file",
+  },
+  extracting: {
+    description: "Teks dan informasi penting sedang dibaca.",
+    label: "Membaca isi",
+  },
+  failed: {
+    description: "Versi ini belum dapat digunakan.",
+    label: "Pemrosesan gagal",
+  },
+  indexing: {
+    description: "Isi dokumen sedang disiapkan agar dapat dicari.",
+    label: "Menyiapkan pencarian",
+  },
+  queued: {
+    description: "File sudah diterima dan akan segera diproses.",
+    label: "Menunggu giliran",
+  },
+  ready: {
+    description: "Versi selesai diproses dan dapat ditinjau.",
+    label: "Siap digunakan",
+  },
+} as const;
