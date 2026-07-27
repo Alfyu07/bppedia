@@ -46,4 +46,5 @@ export type {
 export {
   getAdminDocumentListMock,
   getAdminDocumentVersionHistoryMock,
+  getAdminDocumentVersionHistorySlugs,
 } from "./documents";

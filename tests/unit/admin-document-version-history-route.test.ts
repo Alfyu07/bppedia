@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import AdminDocumentHistoryPage from "@/app/(admin)/admin/documents/[slug]/page";
+import AdminDocumentHistoryPage, {
+  generateStaticParams,
+} from "@/app/(admin)/admin/documents/[slug]/page";
 
 describe("admin document version history route", () => {
+  test("pre-renders every mocked history slug", () => {
+    assert.deepEqual(generateStaticParams(), [{ slug: "employee-benefits" }]);
+  });
+
   test("composes the known document success history", async () => {
     const page = await AdminDocumentHistoryPage({
       params: Promise.resolve({ slug: "employee-benefits" }),

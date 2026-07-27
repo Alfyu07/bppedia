@@ -1,9 +1,16 @@
 import { notFound } from "next/navigation";
 import { AdminDocumentVersionHistory } from "@/components/admin/admin-document-version-history";
-import { getAdminDocumentVersionHistoryMock } from "@/lib/mocks";
+import {
+  getAdminDocumentVersionHistoryMock,
+  getAdminDocumentVersionHistorySlugs,
+} from "@/lib/mocks";
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export function generateStaticParams() {
+  return getAdminDocumentVersionHistorySlugs().map((slug) => ({ slug }));
 }
 
 export default async function AdminDocumentHistoryPage({ params }: Props) {

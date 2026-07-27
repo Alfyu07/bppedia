@@ -179,6 +179,10 @@ const ADMIN_DOCUMENT_VERSION_HISTORIES: Record<
   },
 };
 
+export function getAdminDocumentVersionHistorySlugs(): string[] {
+  return Object.keys(ADMIN_DOCUMENT_VERSION_HISTORIES);
+}
+
 export function getAdminDocumentVersionHistoryMock(
   slug: string,
   scenario: AdminDocumentHistoryScenario
