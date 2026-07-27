@@ -268,6 +268,16 @@ function formatDate(value: string) {
   return DATE_FORMATTER.format(new Date(value));
 }
 
+export function updateAdminDocumentStatus(
+  documents: readonly AdminDocumentListItem[],
+  slug: string,
+  status: "active" | "archived"
+): AdminDocumentListItem[] {
+  return documents.map((document) =>
+    document.slug === slug ? { ...document, status } : document
+  );
+}
+
 export function filterAdminDocuments(
   documents: readonly AdminDocumentListItem[],
   query: string,
