@@ -14,19 +14,25 @@ import { Input } from "@/components/ui/input";
 import { normalizeMockDocumentPage } from "@/lib/mocks/documents";
 
 export interface MockPdfViewerProps {
+  generatedPdfStatus?: "ready";
+  originalFileType?: string;
   pageCount: number;
   pdfHref: string;
   slug: string;
   title: string;
   versionLabel: string;
+  versionReturnHref?: string;
 }
 
 export function MockPdfViewer({
+  generatedPdfStatus,
+  originalFileType,
   pageCount,
   pdfHref,
   slug,
   title,
   versionLabel,
+  versionReturnHref,
 }: MockPdfViewerProps) {
   const searchParams = useSearchParams();
   const currentPage = normalizeMockDocumentPage(
@@ -81,7 +87,11 @@ export function MockPdfViewer({
       <header className="border-border/50 border-b bg-card/80 px-4 py-3 sm:px-6">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3">
           <Button asChild variant="outline">
-            <Link href="/">Ke beranda BPPedia</Link>
+            <Link href={versionReturnHref ?? "/"}>
+              {versionReturnHref
+                ? "Kembali ke riwayat versi"
+                : "Ke beranda BPPedia"}
+            </Link>
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-semibold text-foreground text-lg">
@@ -91,6 +101,18 @@ export function MockPdfViewer({
               Versi {versionLabel}
             </p>
           </div>
+          {originalFileType && generatedPdfStatus ? (
+            <dl className="flex gap-4 text-xs">
+              <div>
+                <dt className="text-muted-foreground">File asli</dt>
+                <dd className="font-medium">{originalFileType}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">PDF hasil</dt>
+                <dd className="font-medium">Siap ditinjau</dd>
+              </div>
+            </dl>
+          ) : null}
           <output aria-live="polite" className="text-foreground text-sm">
             Halaman {currentPage} dari {pageCount}
           </output>

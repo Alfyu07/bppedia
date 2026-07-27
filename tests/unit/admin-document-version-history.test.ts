@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { getAdminDocumentVersionHistoryMock } from "@/lib/mocks";
+import {
+  getAdminDocumentVersionHistoryMock,
+  getAdminDocumentVersionPreviewMock,
+} from "@/lib/mocks";
 
 function getSuccessHistory() {
   const success = getAdminDocumentVersionHistoryMock(
@@ -15,6 +18,51 @@ function getSuccessHistory() {
 }
 
 describe("admin document version history mock", () => {
+  test("resolves only ready versions with their own canonical PDF artifact", () => {
+    assert.deepEqual(
+      getAdminDocumentVersionPreviewMock(
+        "employee-benefits",
+        "employee-benefits-v2026-1"
+      ),
+      {
+        generatedPdfStatus: "ready",
+        originalFileType: "DOCX",
+        pageCount: 12,
+        pdfHref: "/documents/files/employee-benefits-v2026-1.pdf",
+        slug: "employee-benefits",
+        title: "Kebijakan Benefit Karyawan",
+        versionId: "employee-benefits-v2026-1",
+        versionLabel: "2026.1",
+      }
+    );
+    assert.deepEqual(
+      getAdminDocumentVersionPreviewMock(
+        "employee-mobility",
+        "employee-mobility-v2026-1"
+      ),
+      {
+        generatedPdfStatus: "ready",
+        originalFileType: "DOCX",
+        pageCount: 8,
+        pdfHref: "/documents/files/employee-mobility-v2026-1.pdf",
+        slug: "employee-mobility",
+        title: "Panduan Mobilitas Karyawan",
+        versionId: "employee-mobility-v2026-1",
+        versionLabel: "2026.1",
+      }
+    );
+    for (const [slug, versionId] of [
+      ["employee-benefits", "employee-benefits-v2026-3"],
+      ["employee-travel", "employee-travel-v2026-1"],
+      ["employee-benefits", "employee-benefits-v2026-4"],
+      ["employee-benefits", "missing"],
+    ]) {
+      assert.equal(
+        getAdminDocumentVersionPreviewMock(slug, versionId),
+        undefined
+      );
+    }
+  });
   test("selects success, loading, and empty states for known documents", () => {
     const success = getSuccessHistory();
 

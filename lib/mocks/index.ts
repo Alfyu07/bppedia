@@ -41,10 +41,12 @@ export type {
   AdminDocumentStatus,
   AdminDocumentVersionHistory,
   AdminDocumentVersionItem,
+  AdminDocumentVersionPreview,
   AdminVersionProcessingStatus,
 } from "./documents";
 export {
   getAdminDocumentListMock,
   getAdminDocumentVersionHistoryMock,
   getAdminDocumentVersionHistorySlugs,
+  getAdminDocumentVersionPreviewMock,
 } from "./documents";
