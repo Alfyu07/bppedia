@@ -257,6 +257,7 @@ function DocumentLink({ document }: { document: AdminDocumentListItem }) {
     <Link
       className="hover:underline"
       href={`/admin/documents/${document.slug}`}
+      prefetch={false}
     >
       {document.title}
     </Link>
