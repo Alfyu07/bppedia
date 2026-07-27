@@ -13,7 +13,11 @@ export interface QueuedUpload {
   fileName: string;
   processingStatus: "queued";
   targetSlug: string;
+  targetTitle: string;
+  uploadMode: UploadMode;
 }
+
+export type UploadMode = "new-document" | "new-version";
 
 export const ADMIN_UPLOAD_ACCEPT =
   ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -50,9 +54,44 @@ export function formatUploadSize(bytes: number): string {
 
 export function createQueuedUpload(
   targetSlug: string,
-  fileName: string
+  fileName: string,
+  targetTitle = targetSlug,
+  uploadMode: UploadMode = "new-version"
 ): QueuedUpload {
-  return { fileName, processingStatus: "queued", targetSlug };
+  return {
+    fileName,
+    processingStatus: "queued",
+    targetSlug,
+    targetTitle,
+    uploadMode,
+  };
+}
+
+export function normalizeNewDocumentTitle(
+  value: string
+):
+  | { status: "valid"; slug: string; title: string }
+  | { status: "invalid"; message: string } {
+  const title = value.trim().replace(/\s+/g, " ");
+  if (!title) {
+    return { message: "Judul BPP wajib diisi.", status: "invalid" };
+  }
+  if (title.length > 120) {
+    return { message: "Judul BPP maksimal 120 karakter.", status: "invalid" };
+  }
+  const slug = title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (!slug) {
+    return {
+      message: "Judul BPP harus memuat huruf atau angka.",
+      status: "invalid",
+    };
+  }
+  return { slug, status: "valid", title };
 }
 
 const MIME_BY_EXTENSION: Record<string, string> = {
