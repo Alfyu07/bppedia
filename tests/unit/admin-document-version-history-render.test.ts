@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, test } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -94,6 +96,21 @@ describe("admin document version history presentation", () => {
       /Teks dokumen tidak dapat dibaca\. Periksa file lalu coba lagi\./
     );
     assert.match(markup, /aria-live="polite"/);
+    assert.equal(occurrences(markup, ">Publikasikan<"), 2);
+    assert.match(markup, /Versi aktif pada daftar dokumen: 2026\.3/);
+    assert.match(markup, /aria-label="Publikasikan versi 2026\.1"/);
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "components/admin/admin-document-version-history.tsx"
+      ),
+      "utf8"
+    );
+    assert.match(
+      source,
+      /Versi \{versionLabel \?\? ""\} akan menjadi versi aktif/
+    );
+    assert.doesNotMatch(markup, /kualitas jawaban|pertanyaan uji/i);
     assert.doesNotMatch(markup, /stack|trace|provider|error code/i);
   });
 

@@ -2,12 +2,25 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type {
-  AdminDocumentHistoryResult,
-  AdminDocumentVersionItem,
+import {
+  type AdminDocumentHistoryResult,
+  type AdminDocumentVersionItem,
+  applyAdminDocumentPublishMock,
+  getAdminDocumentPublishCandidateMock,
+  parseAdminDocumentPublishStateMock,
 } from "@/lib/mocks";
 
 interface AdminDocumentVersionHistoryProps {
@@ -23,6 +36,16 @@ export function AdminDocumentVersionHistory({
     result.status === "success" ? structuredClone(result.data.versions) : []
   );
   const [announcement, setAnnouncement] = useState("");
+  const [publishVersionId, setPublishVersionId] = useState<string | null>(null);
+  const documentSlug = result.status === "loading" ? null : result.data.slug;
+  useEffect(() => {
+    const stored = parseAdminDocumentPublishStateMock(
+      localStorage.getItem(PUBLISH_STATE_KEY)
+    );
+    if (documentSlug && stored?.document.slug === documentSlug) {
+      setVersions(stored.versions);
+    }
+  }, [documentSlug]);
   if (result.status === "loading") {
     return (
       <section aria-busy="true" className="space-y-4" role="status">
@@ -46,10 +69,16 @@ export function AdminDocumentVersionHistory({
       </header>
       <h2 className="text-xl font-semibold">Riwayat versi</h2>
       {result.status === "success" ? (
-        <p className="rounded-lg border border-blue-600/30 bg-blue-500/5 p-4 text-sm">
-          Versi aktif tetap digunakan selama versi baru diproses atau jika
-          pemrosesan gagal.
-        </p>
+        <div className="space-y-2 rounded-lg border border-blue-600/30 bg-blue-500/5 p-4 text-sm">
+          <p>
+            Versi aktif tetap digunakan selama versi baru diproses atau jika
+            pemrosesan gagal.
+          </p>
+          <p>
+            Versi aktif pada daftar dokumen:{" "}
+            {versions.find((version) => version.isActive)?.label ?? "—"}
+          </p>
+        </div>
       ) : null}
       <p aria-live="polite" className="sr-only">
         {announcement}
@@ -71,6 +100,7 @@ export function AdminDocumentVersionHistory({
         </div>
       ) : (
         <VersionList
+          onPublish={setPublishVersionId}
           onRetry={(id) => {
             setVersions((current) =>
               current.map((version) =>
@@ -91,17 +121,58 @@ export function AdminDocumentVersionHistory({
           versions={versions}
         />
       )}
+      {result.status === "success" ? (
+        <PublishDialog
+          onConfirm={() => {
+            if (!publishVersionId) {
+              return;
+            }
+            const next = applyAdminDocumentPublishMock(
+              {
+                document: {
+                  activeVersionLabel:
+                    versions.find((version) => version.isActive)?.label ?? null,
+                  slug: result.data.slug,
+                  status: "active",
+                  title: result.data.title,
+                  updatedAt: "2026-07-27T00:00:00.000Z",
+                },
+                versions,
+              },
+              publishVersionId
+            );
+            if (next) {
+              setVersions(next.versions);
+              localStorage.setItem(PUBLISH_STATE_KEY, JSON.stringify(next));
+              setAnnouncement(
+                `Versi ${next.document.activeVersionLabel} kini aktif pada daftar dokumen dan riwayat versi.`
+              );
+            }
+            setPublishVersionId(null);
+          }}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setPublishVersionId(null);
+            }
+          }}
+          versionLabel={
+            versions.find(({ id }) => id === publishVersionId)?.label
+          }
+        />
+      ) : null}
     </section>
   );
 }
 
 function VersionList({
+  onPublish,
   onRetry,
   restoredVersionId,
   slug,
   title,
   versions,
 }: {
+  onPublish: (id: string) => void;
   onRetry: (id: string) => void;
   restoredVersionId?: string;
   slug: string;
@@ -137,6 +208,7 @@ function VersionList({
               <td className="px-4 py-4">{formatDate(version.createdAt)}</td>
               <td className="px-4 py-4">
                 <VersionAction
+                  onPublish={onPublish}
                   onRetry={onRetry}
                   slug={slug}
                   version={version}
@@ -170,6 +242,7 @@ function VersionList({
                 <dd>
                   <VersionAction
                     isMobile
+                    onPublish={onPublish}
                     onRetry={onRetry}
                     slug={slug}
                     version={version}
@@ -209,16 +282,21 @@ function VersionStatus({ version }: { version: AdminDocumentVersionItem }) {
 }
 function VersionAction({
   isMobile = false,
+  onPublish,
   onRetry,
   slug,
   version,
 }: {
   isMobile?: boolean;
+  onPublish: (id: string) => void;
   onRetry: (id: string) => void;
   slug: string;
   version: AdminDocumentVersionItem;
 }) {
   const width = isMobile ? " w-full" : "";
+  const canPublish = Boolean(
+    getAdminDocumentPublishCandidateMock(slug, [version], version.id)
+  );
   if (version.processingStatus === "failed") {
     return (
       <Button
@@ -244,18 +322,62 @@ function VersionAction({
         {version.isActive ? (
           <span>Versi aktif</span>
         ) : (
-          <Button
-            className={`min-h-11${width}`}
-            type="button"
-            variant="outline"
-          >
-            Rollback ke versi ini
-          </Button>
+          <>
+            {canPublish ? (
+              <Button
+                aria-label={`Publikasikan versi ${version.label}`}
+                className={`min-h-11${width}`}
+                onClick={() => onPublish(version.id)}
+                type="button"
+              >
+                Publikasikan
+              </Button>
+            ) : null}
+            <Button
+              className={`min-h-11${width}`}
+              type="button"
+              variant="outline"
+            >
+              Rollback ke versi ini
+            </Button>
+          </>
         )}
       </div>
     );
   }
   return "Tersedia setelah pemrosesan selesai";
+}
+
+function PublishDialog({
+  onConfirm,
+  onOpenChange,
+  versionLabel,
+}: {
+  onConfirm: () => void;
+  onOpenChange: (isOpen: boolean) => void;
+  versionLabel?: string;
+}) {
+  return (
+    <AlertDialog onOpenChange={onOpenChange} open={Boolean(versionLabel)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Publikasikan versi {versionLabel ?? ""}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Versi {versionLabel ?? ""} akan menjadi versi aktif pada daftar
+            dokumen dan riwayat versi.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>
+            Konfirmasi publikasi
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 function formatDate(value: string) {
   return DATE_FORMATTER.format(new Date(value));
@@ -265,6 +387,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
 });
 const TABLE_HEADERS = ["Versi", "Status", "Ditambahkan", "Tindakan"] as const;
+const PUBLISH_STATE_KEY = "bppedia:admin-publish-state";
 const STATUS_COPY = {
   converting: {
     description: "File sedang diubah ke format yang dapat dibaca.",

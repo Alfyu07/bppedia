@@ -160,6 +160,18 @@ export interface AdminDocumentVersionPreview {
   versionLabel: string;
 }
 
+export interface AdminDocumentPublishCandidate {
+  slug: string;
+  title: string;
+  versionId: string;
+  versionLabel: string;
+}
+
+export interface AdminDocumentPublishState {
+  document: AdminDocumentListItem;
+  versions: AdminDocumentVersionItem[];
+}
+
 export type AdminDocumentHistoryResult =
   | { status: "loading" }
   | {
@@ -326,4 +338,91 @@ export function getAdminDocumentVersionPreviewMock(
     versionId: version.id,
     versionLabel: version.label,
   };
+}
+
+export function getAdminDocumentPublishCandidateMock(
+  slug: string,
+  versionsOrVersionId: AdminDocumentVersionItem[] | string,
+  maybeVersionId?: string
+): AdminDocumentPublishCandidate | undefined {
+  const versions = Array.isArray(versionsOrVersionId)
+    ? versionsOrVersionId
+    : ADMIN_DOCUMENT_VERSION_HISTORIES[slug]?.versions;
+  const versionId =
+    maybeVersionId ??
+    (typeof versionsOrVersionId === "string" ? versionsOrVersionId : "");
+  const preview = getAdminDocumentVersionPreviewMock(slug, versionId);
+  const version = versions?.find((item) => item.id === versionId);
+  if (!preview || version?.isActive) {
+    return;
+  }
+  return {
+    slug,
+    title: preview.title,
+    versionId,
+    versionLabel: preview.versionLabel,
+  };
+}
+
+export function applyAdminDocumentPublishMock(
+  state: AdminDocumentPublishState,
+  versionId: string
+): AdminDocumentPublishState | undefined {
+  const candidate = state.versions.find((version) => version.id === versionId);
+  if (
+    candidate?.processingStatus !== "ready" ||
+    candidate.isActive ||
+    !getAdminDocumentPublishCandidateMock(
+      state.document.slug,
+      state.versions,
+      versionId
+    )
+  ) {
+    return;
+  }
+  return {
+    document: {
+      ...state.document,
+      activeVersionLabel: candidate.label,
+      status: "active",
+    },
+    versions: state.versions.map((version) => ({
+      ...version,
+      isActive: version.id === versionId,
+    })),
+  };
+}
+
+export function parseAdminDocumentPublishStateMock(
+  value: string | null
+): AdminDocumentPublishState | undefined {
+  if (!value) {
+    return;
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object") {
+      return;
+    }
+    const state = parsed as Partial<AdminDocumentPublishState>;
+    if (!state.document || !Array.isArray(state.versions)) {
+      return;
+    }
+    const active = state.versions.filter((version) => version.isActive);
+    if (
+      active.length !== 1 ||
+      active[0].label !== state.document.activeVersionLabel ||
+      state.versions.some(
+        (version) =>
+          typeof version.id !== "string" ||
+          typeof version.label !== "string" ||
+          typeof version.isActive !== "boolean"
+      )
+    ) {
+      return;
+    }
+    return structuredClone(state as AdminDocumentPublishState);
+  } catch {
+    // Invalid persisted mock data is ignored at the storage boundary.
+  }
 }
