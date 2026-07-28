@@ -111,6 +111,27 @@ describe("admin publish state", () => {
     );
   });
 
+  test("offers publish for the newer ready version after rollback", () => {
+    const rolledBack = applyAdminDocumentRollbackMock(
+      state,
+      "employee-benefits-v2026-1"
+    );
+    assert.ok(rolledBack);
+    assert.equal(
+      getAdminDocumentPublishCandidateMock(
+        rolledBack.document.slug,
+        rolledBack.versions,
+        "employee-benefits-v2026-3"
+      )?.versionLabel,
+      "2026.3"
+    );
+    const republished = applyAdminDocumentPublishMock(
+      rolledBack,
+      "employee-benefits-v2026-3"
+    );
+    assert.equal(republished?.document.activeVersionLabel, "2026.3");
+  });
+
   test("validates persisted document and history as one coherent override", () => {
     const next = applyAdminDocumentRollbackMock(
       state,

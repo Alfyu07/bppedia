@@ -31,6 +31,24 @@ const MOCK_DOCUMENT_OVERVIEWS: Record<string, MockDocumentOverview> = {
   },
 };
 
+const ADMIN_DOCUMENT_VERSION_ARTIFACTS: Record<
+  string,
+  Pick<AdminDocumentVersionPreview, "pageCount" | "pdfHref">
+> = {
+  "employee-benefits-v2026-1": {
+    pageCount: 12,
+    pdfHref: "/documents/files/employee-benefits-v2026-1.pdf",
+  },
+  "employee-benefits-v2026-3": {
+    pageCount: 12,
+    pdfHref: "/documents/files/employee-benefits-v2026-3.pdf",
+  },
+  "employee-mobility-v2026-1": {
+    pageCount: 8,
+    pdfHref: "/documents/files/employee-mobility-v2026-1.pdf",
+  },
+};
+
 export function normalizeMockDocumentPage(
   values: readonly string[],
   pageCount: number
@@ -320,19 +338,18 @@ export function getAdminDocumentVersionPreviewMock(
 ): AdminDocumentVersionPreview | undefined {
   const history = ADMIN_DOCUMENT_VERSION_HISTORIES[slug];
   const version = history?.versions.find((item) => item.id === versionId);
-  const canonicalDocument = MOCK_DOCUMENT_OVERVIEWS[slug];
-  if (
-    version?.processingStatus !== "ready" ||
-    canonicalDocument?.versionId !== version.id
-  ) {
+  const artifact = version
+    ? ADMIN_DOCUMENT_VERSION_ARTIFACTS[version.id]
+    : undefined;
+  if (version?.processingStatus !== "ready" || !artifact) {
     return;
   }
 
   return {
     generatedPdfStatus: "ready",
     originalFileType: "DOCX",
-    pageCount: canonicalDocument.pageCount,
-    pdfHref: canonicalDocument.pdfHref,
+    pageCount: artifact.pageCount,
+    pdfHref: artifact.pdfHref,
     slug,
     title: history.title,
     versionId: version.id,

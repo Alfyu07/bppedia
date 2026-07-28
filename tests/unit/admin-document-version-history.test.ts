@@ -56,7 +56,6 @@ describe("admin document version history mock", () => {
       }
     );
     for (const [slug, versionId] of [
-      ["employee-benefits", "employee-benefits-v2026-3"],
       ["employee-travel", "employee-travel-v2026-1"],
       ["employee-benefits", "employee-benefits-v2026-4"],
       ["employee-benefits", "missing"],
