@@ -289,3 +289,17 @@ Run Playwright/Next build and standalone TypeScript verification serially when t
 ### Verification
 
 After the browser server exits, remove only the generated `.next` artifact, rerun `tsc --noEmit` alone, and confirm the test port is free.
+
+## Linear duplicate-state ordering
+
+### Failure
+
+A Linear issue update sent `duplicateOf` and `state: Duplicate` together, but the MCP applied the state before creating the duplicate relation and rejected the request.
+
+### Prevention
+
+Do not combine duplicate relation creation with the duplicate state transition. When the available tool cannot guarantee relation-first ordering, add a replacement issue link and move the superseded issue to `Canceled` instead. Do not use the comment tool when its schema serializes unrelated empty status-update fields.
+
+### Verification
+
+Read the superseded issue after the update and confirm it has the replacement link and `Canceled` status.

@@ -1,173 +1,198 @@
 # BPPedia Delivery Workflow
 
-This document is the canonical execution workflow for autonomous milestone delivery. Improve it through reviewed commits whenever the workflow changes.
+This document is the canonical execution workflow for autonomous delivery. It uses an outcome-first balanced model: each Linear issue delivers one verifiable user outcome, while planning, review, and full verification run once for that outcome rather than once per component or technical layer.
 
-## Operating mode
+## Operating principles
 
-Hermes owns issue execution and integration until a milestone gate. Do not request routine user approval, per-issue review, or per-issue merge. Ask the user only for a true blocker or the milestone review gate.
+- Linear is the approved source for outcome, scope, acceptance criteria, dependencies, and product decisions.
+- One issue should be a thin but complete vertical slice across every layer needed for its user outcome.
+- Technical steps such as schema, API, UI, worker, tests, and deployment are implementation checkpoints inside the outcome issue, not separate issues by default.
+- Reframe or merge a horizontal issue before implementation when it cannot be demonstrated independently to a user or operator.
+- Reuse completed behavior. Do not rebuild a feature merely because its original issue was more granular.
+- Run one planning cycle, one primary review cycle, one final verification gate, and one PR per vertical outcome.
+- Security, privacy, accessibility, validation, concurrency, and data-loss protection remain mandatory wherever applicable.
+- Hermes owns routine execution and integration. Interrupt the user only for a true blocker, an unresolved high-impact decision, or an explicit product/milestone gate.
+
+## Relationship to agent skills
+
+Repository instructions override generic skill defaults when they would duplicate approved work.
+
+- Always load relevant skills before acting.
+- Treat an approved, sufficiently detailed Linear vertical issue as the design source. Do not create a duplicate spec or request another design approval.
+- Use brainstorming internally to resolve implementation choices within the approved outcome. Ask the user only when the choice meets the interruption policy.
+- Maintain one concise execution map for the issue in the working session or PR description.
+- Create and commit a formal design or implementation-plan document only when the issue leaves a material cross-outcome architecture decision unresolved, explicitly requires the document, or involves security/destructive behavior that cannot be made clear in Linear.
+- Apply TDD to behavior slices, but do not create separate planning artifacts, workers, reviews, PRs, or approval checkpoints for every test seam or helper.
 
 ## Branch model
 
-- `main`: stable milestone output. Do not merge milestone work here before user approval at the milestone gate.
-- `dev`: agent-owned milestone integration branch.
-- `<issue-branch>`: isolated branch created from current `origin/dev` for one Linear issue.
-
-Issue flow:
+- `main`: stable milestone output. Never merge milestone work here without user approval at the milestone gate.
+- `dev`: agent-owned integration branch for the active milestone.
+- `<issue-branch>`: isolated branch created from current `origin/dev` for one vertical outcome issue.
 
 ```text
-origin/dev → issue branch → verified PR → agent merge to dev
+origin/dev → vertical outcome branch → verified PR → agent merge to dev
 ...
 origin/dev → milestone gate PR to main → user review/approval
 ```
 
 Never auto-merge `dev` into `main`.
 
-## Issue selection
+## Issue readiness and selection
 
-1. Read Linear scope, acceptance criteria, milestone, and relations.
-2. Select only dependency-valid issues.
-3. Prefer the issue that establishes a shared foundation or unlocks the next dependency.
-4. Use serial integration unless two branches are genuinely independent and have low conflict risk.
-5. Move `Backlog → In Progress` before implementation.
+Before implementation:
 
-## Per-issue autonomous loop
+1. Read the Linear outcome, acceptance criteria, milestone, and relations.
+2. Confirm the issue is dependency-valid and independently demoable or verifiable.
+3. Confirm its acceptance criteria cover the end-to-end state transitions, trust boundaries, failure/recovery behavior, and relevant responsive/accessibility behavior.
+4. If the issue is only a component or technical layer, reframe or merge it in Linear before writing code.
+5. Prefer the smallest dependency-valid outcome that unlocks the next product journey.
+6. Use serial integration unless outcomes are genuinely independent and have low conflict risk.
+7. Move `Backlog → In Progress` immediately before implementation begins.
 
-### Risk tier and execution budget
+## Vertical outcome loop
 
-Classify the issue before planning. Use the lowest tier that safely covers its trust boundaries:
+### 1. Prepare once
 
-| Tier | Typical scope | Planning | Review budget | Target active time |
-|---|---|---|---|---|
-| S — Small | copy, styling, deterministic local mock UI | one concise design/plan note | controller self-review | 30–60 minutes |
-| M — Medium | stateful UI, forms, accessibility interactions | one combined design/plan, normally ≤150 lines | one whole-diff independent review | 60–120 minutes |
-| L — Large/Risky | auth, permissions, API/DB, upload, persistence, destructive/data-loss behavior | separate design spec and executable plan when useful | scoped risky-boundary reviews plus final review | estimate explicitly |
+1. Fetch `origin`; verify the checkout is clean and `dev` is current.
+2. Create the issue branch from `origin/dev`.
+3. Read `AGENTS.md`, `docs/lessons.md`, relevant Graphify context, owning Linear issue, source, and existing tests.
+4. Map each acceptance criterion to the behavior and trust boundary that proves it.
+5. Record one concise execution map: decisions, behavior slices, likely files, test strategy, and final journey check.
+6. Do not commit a standalone spec/plan unless the skill-override conditions above require one.
 
-Escalate the tier when implementation reveals a higher-risk boundary. Never downgrade validation, security, accessibility, or data-loss protection merely to fit a time target. Time targets expose workflow waste; they are not merge deadlines.
+### 2. Implement in internal behavior slices
 
-1. Fetch `origin`; verify `dev` clean and current.
-2. Create the Linear issue branch from `origin/dev`.
-3. Read `AGENTS.md`, `docs/lessons.md`, Graphify context, relevant source/tests, and owning Linear issues.
-4. For creative/product behavior, run brainstorming internally:
-   - compare 2–3 scoped approaches;
-   - choose the safest YAGNI option supported by Linear and existing conventions;
-   - do not ask for routine approval.
-5. For UI work, perform only the UI/UX research needed to resolve the issue's actual decisions.
-6. Plan proportionally:
-   - S/M: one combined design/plan note, normally ≤150 lines, with acceptance map, decisions, file map, and executable TDD steps;
-   - L: separate design spec and executable plan when complexity warrants it.
-7. Self-review planning once for placeholders, contradictions, ambiguity, and scope; commit the planning artifact(s) together.
-8. Implement with TDD in behavior slices: capture valid RED evidence across the affected behavior, write minimum GREEN code, then refactor only if useful. Do not create worker/review/commit checkpoints for every helper or test seam.
-9. Use at most one implementation worker for S/M unless independent work is genuinely parallel. The controller handles clear fixes of roughly ≤50 lines; do not dispatch a worker merely to apply a known patch.
-10. Review proportionally:
-    - S: one controller acceptance/diff audit;
-    - M: one whole-diff independent review;
-    - L: scoped reviews for risky boundaries plus one final review.
-    Fix Critical/Important findings; fix Minor findings only when cheap and in scope. Re-review only a material Critical/Important fix, with at most one delta review. If one reviewer retry fails or times out, perform the controller audit and continue; do not loop reviewers.
-11. Use staged verification rather than repeating the full gate:
-    - inner loop: affected tests; TypeScript only when the type boundary changes;
-    - pre-QA: affected/full unit tests, TypeScript, scoped Ultracite, and one direct production build;
-    - final source: rerun only checks affected by QA fixes, then one final build if production source changed and one Graphify update after source is final.
-12. Run fresh final automated verification as applicable:
-    - affected unit/render tests;
-    - TypeScript;
-    - scoped Ultracite;
-    - direct Next production build;
-    - `graphify update .`;
-    - `git diff --check`.
-13. For any rendered UI change, perform one consolidated rendered UI/UX QA session before handoff:
-    - desktop 1440×900;
-    - representative tablet viewport;
-    - mobile 375×812;
-    - relevant success/loading/empty/error states;
-    - runtime/console errors;
-    - hierarchy, scannability, navigation affordance, keyboard focus, contrast, ≥44 px touch targets, overflow, truncation, and responsive behavior.
-    Use the reusable harness when available: viewport screenshots for fixed dialogs, exact failed request URLs, animation-settled focus assertions, and guaranteed browser/server teardown. Do not mistake full-page fixed-overlay artifacts for viewport defects.
-14. Fix real in-scope findings directly when clear, then rerun only affected interactions/checks. Route deferred behavior to its owning Linear issue.
-   - QA harness retry budget: preflight one desktop journey first and wait for the final hydrated interaction control, not static PPR/Suspense copy. Only after preflight passes, run the viewport matrix. After two harness-only failures, stop rewriting the ad-hoc script; switch to a previously proven selector/browser path and record the harness defect separately. Never rerun source/build gates for a harness-only change.
-15. Push the issue branch and create a PR targeting `dev`.
-16. Verify PR base/head, diff, checks, mergeability, and remote SHA.
-17. Merge the verified issue PR to `dev` without user interruption.
-18. Fetch and verify the issue commit exists in `origin/dev`.
-19. Update Linear with acceptance evidence: `In Progress → Review → Done`. Read back after each mutation.
-20. Delete the merged issue branch when safe.
-21. Continue immediately to the next dependency-valid issue.
+For each meaningful behavior slice:
 
-### Default S/M guardrails
+1. Write or identify the smallest check that proves the behavior.
+2. Capture valid RED evidence when changing non-trivial behavior.
+3. Implement the minimum GREEN path.
+4. Run only the affected check.
+5. Refactor only when it reduces current complexity.
+6. Continue within the same issue branch without creating a new approval, review, PR, or Linear issue.
 
-- one combined planning artifact, normally ≤150 lines;
-- one implementation batch and normally one implementation commit;
-- one primary review; one delta review maximum only for a material fix;
-- one production build on final source unless a production QA fix requires one rerun;
-- one Graphify update after source is final;
-- one consolidated rendered-QA session;
-- no repeated identical gate without a source/environment change or a concrete failed assertion;
-- approval/tool timeout is a visible blocker: report it immediately and retry only after user consent.
+Use the controller for clear local changes. Dispatch workers only for genuinely independent work; do not dispatch a worker merely to apply a known patch.
 
-## Auto-merge gate for issue PRs
+### 3. Integrate the outcome
 
-Hermes may merge an issue PR to `dev` only when all applicable checks pass:
+Before final review:
 
-- acceptance criteria implemented;
-- committed spec and plan;
-- valid TDD evidence;
-- no unresolved Critical/Important review findings;
-- focused tests pass;
-- TypeScript passes;
-- scoped Ultracite is clean;
-- direct Next build passes;
-- rendered desktop/tablet/mobile QA passes for UI changes;
-- no runtime blocker, horizontal overflow, or severe accessibility regression;
-- PR targets `dev`, is up to date, and is mergeable;
-- no unapproved security, destructive, data-loss, or product-scope expansion.
+- exercise the complete issue journey across all touched layers;
+- verify shared state and contracts across routes/processes rather than only component-local behavior;
+- verify refresh, deep-link, back/retry, and partial-failure behavior when relevant;
+- remove contradictory fixtures, dead affordances, and stale paths encountered inside the approved outcome;
+- defer only unrelated product outcomes, with a clear owning Linear issue.
 
-A missing external CI check is not automatically fatal when equivalent fresh local evidence exists and repository rules do not require it. Record the evidence honestly.
+### 4. Review once
+
+- Run one whole-outcome acceptance/diff review after the journey works.
+- Add one focused risky-boundary review only for authentication, authorization, privacy, concurrency, destructive/data-loss behavior, or deployment rollback.
+- Fix Critical/Important findings. Fix Minor findings only when cheap and in scope.
+- Run at most one delta review after a material Critical/Important fix.
+- If one reviewer retry fails or times out, perform the controller audit, record the limitation, and continue. Never loop reviewers.
+
+### 5. Verify proportionally
+
+Use staged checks without repeating identical gates:
+
+- Inner loop: affected unit/render/integration test only; TypeScript only when a type boundary changes.
+- Outcome integration: the narrowest end-to-end journey proving the issue acceptance criteria.
+- Final source gate, once after source is stable:
+  - affected or relevant full unit/render/integration tests;
+  - TypeScript;
+  - scoped Ultracite;
+  - direct Next production build when production code/config changed;
+  - `git diff --check`;
+  - `graphify update .` once after source is final.
+- Run the complete repository suite at milestone/CI gates, or earlier only when the outcome changes broad shared infrastructure.
+- Never rerun an unchanged full gate without a source/environment change or a concrete failed assertion.
+
+### 6. Perform consolidated rendered QA
+
+For a frontend outcome, perform one rendered UI/UX QA session after the complete journey is integrated:
+
+- desktop 1440×900;
+- representative tablet viewport;
+- mobile 375×812;
+- relevant success/loading/empty/error/recovery states;
+- runtime and console errors;
+- hierarchy, scannability, navigation, keyboard focus, contrast, at least 44 px touch targets, overflow, truncation, and responsive behavior.
+
+Preflight one complete desktop journey before running the viewport matrix. Reuse proven selectors/harnesses. After two harness-only failures, stop rewriting the ad-hoc harness; use a proven browser path and record the harness limitation. A harness-only fix does not trigger source/build gates.
+
+Fix clear in-scope product findings, then rerun only affected interactions/checks.
+
+### 7. Integrate once
+
+1. Push the outcome branch and create one PR targeting `dev`.
+2. Verify base/head, diff, checks, mergeability, and remote SHA.
+3. Merge to `dev` without routine user interruption when the auto-merge gate passes.
+4. Fetch and verify the outcome commit exists in `origin/dev`.
+5. Update Linear with concise acceptance and verification evidence: `In Progress → Review → Done`; read back each mutation.
+6. Delete the merged branch when safe.
+7. Continue to the next dependency-valid outcome.
+
+## Auto-merge gate for outcome PRs
+
+Hermes may merge an outcome PR to `dev` when all applicable checks pass:
+
+- every acceptance criterion is implemented and demonstrated by the integrated outcome;
+- required design decisions are captured in Linear or a necessary committed design artifact;
+- valid behavior-level RED/GREEN evidence exists for non-trivial changes;
+- no unresolved Critical/Important review finding remains;
+- relevant tests, TypeScript, scoped Ultracite, and required production build pass;
+- frontend outcomes pass one consolidated desktop/tablet/mobile journey QA;
+- no runtime blocker, dead-end journey, contradictory shared state, horizontal overflow, or severe accessibility regression remains;
+- PR targets current `dev`, is mergeable, and introduces no unapproved security, destructive, data-loss, or product-scope expansion.
+
+A committed spec/plan is not mandatory when the approved Linear issue already resolves the design. Missing external CI is not automatically fatal when equivalent fresh local evidence exists and repository rules do not require it; record evidence honestly.
 
 ## User interruption policy
 
 Interrupt the user only for:
 
 - contradictory requirements with no safe reversible default;
-- a new high-impact product decision not resolved by Linear/spec/conventions;
-- authentication, authorization, security, privacy, or credential architecture decisions;
-- destructive/data-loss behavior;
-- unavailable access, credential, service, or dependency that blocks every reasonable path;
-- a Git conflict where resolution risks losing another person's changes;
+- a new high-impact product decision not resolved by Linear, existing design, or conventions;
+- unresolved authentication, authorization, security, privacy, credential, destructive, or data-loss architecture choices;
+- unavailable access, credentials, services, or dependencies blocking every reasonable path;
+- a Git conflict where resolution risks losing another person's work;
 - repeated verified failures indicating an architectural problem;
-- the milestone review gate.
+- an explicit Linear product gate or milestone promotion gate.
 
-Do not interrupt for ordinary implementation choices, spec/plan approval, reviewer Minor findings, issue PR creation, or issue PR merge to `dev`.
+Do not interrupt for ordinary implementation choices, duplicate spec/plan approval, subtask completion, Minor review findings, outcome PR creation, or outcome PR merge to `dev`.
 
 ## Milestone gate
 
-After all milestone issues are integrated into `dev`:
+After all milestone outcome issues are integrated into `dev`:
 
 1. Run the complete relevant automated suite serially.
-2. Run final rendered journey QA on desktop/tablet/mobile.
+2. Run final rendered end-to-end journey QA on desktop/tablet/mobile.
 3. Prepare critical E2E flows for the user's MacBook; never run milestone Playwright E2E on the VPS.
-4. Produce one gate packet:
-   - issue/PR/commit matrix;
+4. Produce one gate packet with:
+   - outcome issue/PR/commit matrix;
    - acceptance summary;
    - verification evidence;
    - representative screenshots;
-   - known limitations/deferred issues;
+   - known limitations/deferred outcomes;
    - concise MacBook manual/E2E checklist;
    - PR from `dev` to `main`.
-5. Stop and request one user review/approval.
+5. Request one user review/approval.
 6. Merge `dev → main` only after explicit milestone approval.
-7. Verify `origin/main`, close the milestone gate issue, and record the outcome.
+7. Verify `origin/main` and record the milestone outcome in Linear.
+
+`ALF-67` is the current explicit product gate for the complete mocked employee and admin journeys. Future milestone promotion remains a user gate even when no separate gate issue exists.
 
 ## Status communication
 
-- Send occasional concise progress heartbeats so autonomous work stays visible without requesting a response.
-- Send a heartbeat when starting an issue, after merging it to `dev`, when moving to the next issue or a major phase, and occasionally during long-running work.
-- Use: `ℹ️ Sekarang mengerjakan <issue/phase> — hanya info, tidak perlu respons.`
-- Do not turn heartbeats into approval requests or routine chatter.
-- `🔄` means a real task/process/subagent is active.
-- `⏸` means a true blocker or milestone gate is waiting on the user.
-- `✅` means the requested handoff/gate is complete.
+- Send concise progress updates when starting an outcome, after merging it to `dev`, when moving to the next major phase, and occasionally during long-running work.
+- Progress updates are informational, not routine approval requests.
+- Never claim autonomous work is active when no implementation, verification, or delegated task is running.
 - A dev server alone is not progress.
-- Never claim autonomous work is running when no task/process is active.
 
-## Current pilot
+## Current roadmap
 
-M3 uses this workflow. Issue PRs merge to `dev`; only the completed M3 gate may promote `dev` to `main` after user approval.
+- M4: `ALF-98` admin mocked journey and `ALF-99` employee mocked journey → `ALF-67` product approval.
+- M5: `ALF-100` persisted admin catalog → `ALF-101` PDF ingestion/preview → `ALF-103` active-knowledge control; `ALF-102` Word conversion follows `ALF-101` independently.
+- M6: `ALF-104` exact cited answer → `ALF-105` semantic/bilingual safe answer.
+- M7: `ALF-106` measured readiness → `ALF-107` production deployment verification.

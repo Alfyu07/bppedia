@@ -9,26 +9,29 @@ Read `docs/lessons.md` before starting work and before retrying a failed tool ca
 ## Autonomous Delivery Workflow
 
 - `docs/WORKFLOW.md` is the canonical executable delivery workflow. Read it before selecting, starting, reviewing, merging, or handing off work.
-- During an active milestone, use `dev` as the agent-owned integration branch and create issue branches from current `origin/dev`.
-- After all gates pass, Hermes may create and merge issue PRs into `dev` without routine user approval.
+- Use the outcome-first balanced model: one planning cycle, one primary review, one final verification gate, and one PR per vertical outcome issue—not per component, helper, technical layer, or test seam.
+- An approved, sufficiently detailed Linear vertical issue is the design source. Do not create a duplicate spec/plan or request duplicate approval unless the issue leaves a material cross-outcome architecture decision unresolved, explicitly requires the artifact, or involves an unresolved security/destructive decision.
+- Use behavior subtasks as internal TDD checkpoints inside the outcome branch; they do not receive separate branches, planning artifacts, reviews, PRs, or Linear workflow transitions.
+- During an active milestone, use `dev` as the agent-owned integration branch and create outcome branches from current `origin/dev`.
+- After all applicable gates pass, Hermes may create and merge outcome PRs into `dev` without routine user approval.
 - Never merge `dev` into `main` before the user approves the milestone gate.
-- Interrupt the user only for true blockers defined in `docs/WORKFLOW.md` or a milestone review gate.
-- Rendered desktop/tablet/mobile UI/UX QA is mandatory before handing off any frontend change.
-- Do not claim autonomous work is active unless a real task, process, or subagent is running.
+- Interrupt the user only for true blockers defined in `docs/WORKFLOW.md`, an unresolved security/destructive decision, or an explicit product/milestone gate.
+- Run one consolidated rendered desktop/tablet/mobile UI/UX QA session for each complete frontend outcome before handoff—not once per subcomponent.
+- Do not claim autonomous work is active unless a real implementation, verification, or delegated task is running.
 
 ## Linear Workflow
 
 - Linear workspace and team: `Alfy`.
 - Linear project: `bppedia`.
-- Linear is the source of truth for issue scope, acceptance criteria, dependencies, and status.
-- Use the workflow `Backlog → In Progress → Review → Done`.
-- Move an issue to `In Progress` before implementation begins.
-- Complete the frontend with mock data and obtain user review before starting dependent backend work.
-- After automated verification passes, add verification evidence and move the issue to `Review`.
-- For ordinary issues, move from `Review` to `Done` after the automated gate passes; manual approval is not required.
-- Require a manual verification checklist and explicit user approval only for milestone gate issues, authentication/security work, and destructive flows.
-- Milestone gate issues are `ALF-47`, `ALF-56`, `ALF-65`, `ALF-67`, `ALF-82`, `ALF-89`, and `ALF-93`.
-- Never move an issue directly from `In Progress` to `Done`.
+- Linear is the source of truth for outcome scope, acceptance criteria, dependencies, product decisions, and status.
+- Each implementation issue must deliver one independently demoable or verifiable user/operator outcome across all required layers. Keep schema/API/UI/worker/test steps inside that issue unless they deliver an independent outcome.
+- Reframe or merge horizontal component/layer issues before implementation; do not compensate for poor issue slicing with repeated planning and review loops.
+- Use the workflow `Backlog → In Progress → Review → Done`; never move directly from `In Progress` to `Done`.
+- Move an issue to `In Progress` immediately before implementation begins.
+- Complete and approve the mocked employee/admin product through `ALF-98`, `ALF-99`, and gate `ALF-67` before starting dependent real-backend work.
+- After one outcome-level automated/review/QA gate passes, add concise verification evidence, move `In Progress → Review`, then move ordinary issues to `Done` without manual approval.
+- Require explicit user approval for `ALF-67`, `dev → main` milestone promotion, and unresolved authentication/security/privacy or destructive/data-loss architecture choices. Security-sensitive implementation with decisions already approved in Linear may otherwise proceed autonomously with focused risky-boundary review and evidence.
+- Current roadmap: `ALF-98/99 → ALF-67 → ALF-100 → ALF-101 → ALF-103 → ALF-104 → ALF-105 → ALF-106 → ALF-107`; `ALF-102` follows `ALF-101` independently.
 
 ## Code Style & Structure
 
