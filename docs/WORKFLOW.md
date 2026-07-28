@@ -83,6 +83,7 @@ Escalate the tier when implementation reveals a higher-risk boundary. Never down
     - hierarchy, scannability, navigation affordance, keyboard focus, contrast, ≥44 px touch targets, overflow, truncation, and responsive behavior.
     Use the reusable harness when available: viewport screenshots for fixed dialogs, exact failed request URLs, animation-settled focus assertions, and guaranteed browser/server teardown. Do not mistake full-page fixed-overlay artifacts for viewport defects.
 14. Fix real in-scope findings directly when clear, then rerun only affected interactions/checks. Route deferred behavior to its owning Linear issue.
+   - QA harness retry budget: preflight one desktop journey first and wait for the final hydrated interaction control, not static PPR/Suspense copy. Only after preflight passes, run the viewport matrix. After two harness-only failures, stop rewriting the ad-hoc script; switch to a previously proven selector/browser path and record the harness defect separately. Never rerun source/build gates for a harness-only change.
 15. Push the issue branch and create a PR targeting `dev`.
 16. Verify PR base/head, diff, checks, mergeability, and remote SHA.
 17. Merge the verified issue PR to `dev` without user interruption.

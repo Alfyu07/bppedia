@@ -10,6 +10,11 @@ import {
   getAdminDocumentVersionHistoryMock,
 } from "@/lib/mocks";
 
+const source = readFileSync(
+  join(process.cwd(), "components/admin/admin-document-version-history.tsx"),
+  "utf8"
+);
+
 function renderScenario(scenario: AdminDocumentHistoryScenario) {
   const result = getAdminDocumentVersionHistoryMock(
     "employee-benefits",
@@ -28,6 +33,15 @@ function occurrences(markup: string, value: string) {
 }
 
 describe("admin document version history presentation", () => {
+  test("exposes a deterministic client readiness contract", () => {
+    assert.match(source, /data-testid="admin-version-history"/);
+    assert.match(
+      source,
+      /data-client-ready=\{isClientReady \? "true" : "false"\}/
+    );
+    assert.match(source, /setIsClientReady\(true\)/);
+  });
+
   test("renders responsive semantic history in newest-first order", () => {
     const markup = renderScenario("success");
 
@@ -99,17 +113,17 @@ describe("admin document version history presentation", () => {
     assert.equal(occurrences(markup, ">Publikasikan<"), 2);
     assert.match(markup, /Versi aktif pada daftar dokumen: 2026\.3/);
     assert.match(markup, /aria-label="Publikasikan versi 2026\.1"/);
-    const source = readFileSync(
-      join(
-        process.cwd(),
-        "components/admin/admin-document-version-history.tsx"
-      ),
-      "utf8"
-    );
+
     assert.match(
       source,
       /Versi \{versionLabel \?\? ""\} akan menjadi versi aktif/
     );
+    assert.match(source, /Rollback dari versi \{currentLabel/);
+    assert.match(source, /ke versi \{targetLabel/);
+    assert.match(source, /aria-label={`Rollback ke versi \${version\.label}`}/);
+    assert.match(source, /onCloseAutoFocus/);
+    assert.match(source, /aria-atomic="true"/);
+    assert.match(source, /kini aktif pada daftar dokumen dan riwayat versi/);
     assert.doesNotMatch(markup, /kualitas jawaban|pertanyaan uji/i);
     assert.doesNotMatch(markup, /stack|trace|provider|error code/i);
   });

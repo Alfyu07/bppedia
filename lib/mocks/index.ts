@@ -48,8 +48,10 @@ export type {
 } from "./documents";
 export {
   applyAdminDocumentPublishMock,
+  applyAdminDocumentRollbackMock,
   getAdminDocumentListMock,
   getAdminDocumentPublishCandidateMock,
+  getAdminDocumentRollbackCandidateMock,
   getAdminDocumentVersionHistoryMock,
   getAdminDocumentVersionHistorySlugs,
   getAdminDocumentVersionPreviewMock,

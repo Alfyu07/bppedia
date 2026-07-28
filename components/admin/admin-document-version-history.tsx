@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +19,9 @@ import {
   type AdminDocumentHistoryResult,
   type AdminDocumentVersionItem,
   applyAdminDocumentPublishMock,
+  applyAdminDocumentRollbackMock,
   getAdminDocumentPublishCandidateMock,
+  getAdminDocumentRollbackCandidateMock,
   parseAdminDocumentPublishStateMock,
 } from "@/lib/mocks";
 
@@ -36,15 +38,27 @@ export function AdminDocumentVersionHistory({
     result.status === "success" ? structuredClone(result.data.versions) : []
   );
   const [announcement, setAnnouncement] = useState("");
+  const [isClientReady, setIsClientReady] = useState(false);
   const [publishVersionId, setPublishVersionId] = useState<string | null>(null);
+  const [rollbackVersionId, setRollbackVersionId] = useState<string | null>(
+    null
+  );
+  const rollbackTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const historyHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const documentSlug = result.status === "loading" ? null : result.data.slug;
   useEffect(() => {
+    if (!documentSlug) {
+      setIsClientReady(false);
+      return;
+    }
     const stored = parseAdminDocumentPublishStateMock(
       localStorage.getItem(PUBLISH_STATE_KEY)
     );
-    if (documentSlug && stored?.document.slug === documentSlug) {
+    if (stored?.document.slug === documentSlug) {
       setVersions(stored.versions);
     }
+    const readyFrame = requestAnimationFrame(() => setIsClientReady(true));
+    return () => cancelAnimationFrame(readyFrame);
   }, [documentSlug]);
   if (result.status === "loading") {
     return (
@@ -54,7 +68,11 @@ export function AdminDocumentVersionHistory({
     );
   }
   return (
-    <section className="space-y-6">
+    <section
+      className="space-y-6"
+      data-client-ready={isClientReady ? "true" : "false"}
+      data-testid="admin-version-history"
+    >
       <header className="space-y-3">
         <Link
           className="inline-flex min-h-11 items-center text-sm hover:underline"
@@ -67,7 +85,13 @@ export function AdminDocumentVersionHistory({
           <p className="text-muted-foreground">Riwayat versi BPP</p>
         </div>
       </header>
-      <h2 className="text-xl font-semibold">Riwayat versi</h2>
+      <h2
+        className="text-xl font-semibold"
+        ref={historyHeadingRef}
+        tabIndex={-1}
+      >
+        Riwayat versi
+      </h2>
       {result.status === "success" ? (
         <div className="space-y-2 rounded-lg border border-blue-600/30 bg-blue-500/5 p-4 text-sm">
           <p>
@@ -80,7 +104,7 @@ export function AdminDocumentVersionHistory({
           </p>
         </div>
       ) : null}
-      <p aria-live="polite" className="sr-only">
+      <p aria-atomic="true" aria-live="polite" className="sr-only">
         {announcement}
       </p>
       {restoredVersionId && result.status === "success" ? (
@@ -114,6 +138,10 @@ export function AdminDocumentVersionHistory({
               )
             );
             setAnnouncement("Pemrosesan dicoba lagi dan masuk antrean.");
+          }}
+          onRollback={(id, trigger) => {
+            rollbackTriggerRef.current = trigger;
+            setRollbackVersionId(id);
           }}
           restoredVersionId={restoredVersionId}
           slug={result.data.slug}
@@ -160,12 +188,45 @@ export function AdminDocumentVersionHistory({
           }
         />
       ) : null}
+      {result.status === "success" ? (
+        <RollbackDialog
+          currentLabel={versions.find(({ isActive }) => isActive)?.label}
+          fallbackFocusRef={historyHeadingRef}
+          onConfirm={() => {
+            if (!rollbackVersionId) {
+              return;
+            }
+            const next = applyAdminDocumentRollbackMock(
+              createPublishState(result.data, versions),
+              rollbackVersionId
+            );
+            if (next) {
+              setVersions(next.versions);
+              localStorage.setItem(PUBLISH_STATE_KEY, JSON.stringify(next));
+              setAnnouncement(
+                `Versi ${next.document.activeVersionLabel} kini aktif pada daftar dokumen dan riwayat versi.`
+              );
+            }
+            setRollbackVersionId(null);
+          }}
+          onOpenChange={(open) => {
+            if (!open) {
+              setRollbackVersionId(null);
+            }
+          }}
+          targetLabel={
+            versions.find(({ id }) => id === rollbackVersionId)?.label
+          }
+          triggerRef={rollbackTriggerRef}
+        />
+      ) : null}
     </section>
   );
 }
 
 function VersionList({
   onPublish,
+  onRollback,
   onRetry,
   restoredVersionId,
   slug,
@@ -173,6 +234,7 @@ function VersionList({
   versions,
 }: {
   onPublish: (id: string) => void;
+  onRollback: (id: string, trigger: HTMLButtonElement) => void;
   onRetry: (id: string) => void;
   restoredVersionId?: string;
   slug: string;
@@ -210,8 +272,10 @@ function VersionList({
                 <VersionAction
                   onPublish={onPublish}
                   onRetry={onRetry}
+                  onRollback={onRollback}
                   slug={slug}
                   version={version}
+                  versions={versions}
                 />
               </td>
             </tr>
@@ -244,8 +308,10 @@ function VersionList({
                     isMobile
                     onPublish={onPublish}
                     onRetry={onRetry}
+                    onRollback={onRollback}
                     slug={slug}
                     version={version}
+                    versions={versions}
                   />
                 </dd>
               </div>
@@ -283,19 +349,29 @@ function VersionStatus({ version }: { version: AdminDocumentVersionItem }) {
 function VersionAction({
   isMobile = false,
   onPublish,
+  onRollback,
   onRetry,
   slug,
   version,
+  versions,
 }: {
   isMobile?: boolean;
   onPublish: (id: string) => void;
+  onRollback: (id: string, trigger: HTMLButtonElement) => void;
   onRetry: (id: string) => void;
   slug: string;
   version: AdminDocumentVersionItem;
+  versions: AdminDocumentVersionItem[];
 }) {
   const width = isMobile ? " w-full" : "";
   const canPublish = Boolean(
     getAdminDocumentPublishCandidateMock(slug, [version], version.id)
+  );
+  const canRollback = Boolean(
+    getAdminDocumentRollbackCandidateMock(
+      createPublishState({ slug, title: "" }, versions),
+      version.id
+    )
   );
   if (version.processingStatus === "failed") {
     return (
@@ -333,19 +409,87 @@ function VersionAction({
                 Publikasikan
               </Button>
             ) : null}
-            <Button
-              className={`min-h-11${width}`}
-              type="button"
-              variant="outline"
-            >
-              Rollback ke versi ini
-            </Button>
+            {canRollback ? (
+              <Button
+                aria-label={`Rollback ke versi ${version.label}`}
+                className={`min-h-11${width}`}
+                onClick={(event) => onRollback(version.id, event.currentTarget)}
+                type="button"
+                variant="outline"
+              >
+                Rollback ke versi ini
+              </Button>
+            ) : null}
           </>
         )}
       </div>
     );
   }
   return "Tersedia setelah pemrosesan selesai";
+}
+
+function RollbackDialog({
+  currentLabel,
+  fallbackFocusRef,
+  onConfirm,
+  onOpenChange,
+  targetLabel,
+  triggerRef,
+}: {
+  currentLabel?: string;
+  fallbackFocusRef: { current: HTMLHeadingElement | null };
+  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
+  targetLabel?: string;
+  triggerRef: { current: HTMLButtonElement | null };
+}) {
+  return (
+    <AlertDialog onOpenChange={onOpenChange} open={Boolean(targetLabel)}>
+      <AlertDialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const focusTarget = triggerRef.current?.isConnected
+            ? triggerRef.current
+            : fallbackFocusRef.current;
+          focusTarget?.focus();
+          triggerRef.current = null;
+        }}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Rollback ke versi {targetLabel ?? ""}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Rollback dari versi {currentLabel ?? ""} ke versi{" "}
+            {targetLabel ?? ""}. Versi target akan menjadi versi aktif pada
+            daftar dokumen dan riwayat versi.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="min-h-11">Batal</AlertDialogCancel>
+          <AlertDialogAction className="min-h-11" onClick={onConfirm}>
+            Konfirmasi rollback
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+function createPublishState(
+  document: { slug: string; title: string },
+  versions: AdminDocumentVersionItem[]
+) {
+  return {
+    document: {
+      activeVersionLabel:
+        versions.find(({ isActive }) => isActive)?.label ?? null,
+      slug: document.slug,
+      status: "active" as const,
+      title: document.title,
+      updatedAt: "2026-07-27T00:00:00.000Z",
+    },
+    versions,
+  };
 }
 
 function PublishDialog({

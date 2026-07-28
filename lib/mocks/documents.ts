@@ -393,6 +393,49 @@ export function applyAdminDocumentPublishMock(
   };
 }
 
+export function getAdminDocumentRollbackCandidateMock(
+  state: AdminDocumentPublishState,
+  versionId: string
+): AdminDocumentPublishCandidate | undefined {
+  const active = state.versions.find((version) => version.isActive);
+  const target = state.versions.find((version) => version.id === versionId);
+  if (
+    !active ||
+    target?.processingStatus !== "ready" ||
+    target.isActive ||
+    Date.parse(target.createdAt) >= Date.parse(active.createdAt)
+  ) {
+    return;
+  }
+  return {
+    slug: state.document.slug,
+    title: state.document.title,
+    versionId: target.id,
+    versionLabel: target.label,
+  };
+}
+
+export function applyAdminDocumentRollbackMock(
+  state: AdminDocumentPublishState,
+  versionId: string
+): AdminDocumentPublishState | undefined {
+  const candidate = getAdminDocumentRollbackCandidateMock(state, versionId);
+  if (!candidate) {
+    return;
+  }
+  return {
+    document: {
+      ...state.document,
+      activeVersionLabel: candidate.versionLabel,
+      status: "active",
+    },
+    versions: state.versions.map((version) => ({
+      ...version,
+      isActive: version.id === versionId,
+    })),
+  };
+}
+
 export function parseAdminDocumentPublishStateMock(
   value: string | null
 ): AdminDocumentPublishState | undefined {
