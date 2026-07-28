@@ -365,7 +365,7 @@ function VersionAction({
 }) {
   const width = isMobile ? " w-full" : "";
   const canPublish = Boolean(
-    getAdminDocumentPublishCandidateMock(slug, [version], version.id)
+    getAdminDocumentPublishCandidateMock(slug, versions, version.id)
   );
   const canRollback = Boolean(
     getAdminDocumentRollbackCandidateMock(

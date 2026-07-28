@@ -128,6 +128,28 @@ describe("admin document version history presentation", () => {
     assert.doesNotMatch(markup, /stack|trace|provider|error code/i);
   });
 
+  test("offers publish for a newer ready version after rollback", () => {
+    const result = getAdminDocumentVersionHistoryMock(
+      "employee-benefits",
+      "success"
+    );
+    assert.equal(result?.status, "success");
+    if (result?.status !== "success") {
+      throw new Error("Expected successful document history");
+    }
+    result.data.versions = result.data.versions.map((version) => ({
+      ...version,
+      isActive: version.id === "employee-benefits-v2026-1",
+    }));
+
+    const markup = renderToStaticMarkup(
+      createElement(AdminDocumentVersionHistory, { result })
+    );
+
+    assert.match(markup, /aria-label="Publikasikan versi 2026\.3"/);
+    assert.doesNotMatch(markup, /aria-label="Rollback ke versi 2026\.3"/);
+  });
+
   test("renders an accessible loading state", () => {
     const markup = renderScenario("loading");
 
