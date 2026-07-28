@@ -212,6 +212,23 @@ A one-line production smoke used a malformed CSS attribute selector, then treate
 
 After the smoke, confirm the expected page text, asset/PDF responses, final query-only URL, and that the selected port has no listener.
 
+## Rendered QA harness retry budget
+
+### Failure
+
+An ad-hoc PPR interaction harness repeatedly counted controls before client hydration, then changed login and content selectors without first proving one complete viewport journey. Harness defects consumed more time than source review.
+
+### Prevention
+
+- Preflight one desktop journey and inspect its final URL, accessible names, responsive duplicate markup, and hydrated control before running three viewports.
+- Wait for the exact final interaction control; static streamed copy is not hydration evidence.
+- Reuse proven selectors/harnesses. After two harness-only failures, stop patching the script and switch to a direct browser path or minimal proven interaction.
+- Classify failures before retrying: product/source, environment/server, or harness. Harness-only edits never trigger source tests or production rebuilds.
+
+### Verification
+
+The preflight must complete the target interaction once. Then run the unchanged selector set across desktop, tablet, and mobile and tear down browser/server exactly once.
+
 ## Build/start environment parity
 
 ### Failure

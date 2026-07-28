@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   applyAdminDocumentPublishMock,
+  applyAdminDocumentRollbackMock,
   getAdminDocumentListMock,
   getAdminDocumentPublishCandidateMock,
   getAdminDocumentVersionHistoryMock,
@@ -55,7 +56,6 @@ describe("admin document version history mock", () => {
       }
     );
     for (const [slug, versionId] of [
-      ["employee-benefits", "employee-benefits-v2026-3"],
       ["employee-travel", "employee-travel-v2026-1"],
       ["employee-benefits", "employee-benefits-v2026-4"],
       ["employee-benefits", "missing"],
@@ -66,18 +66,13 @@ describe("admin document version history mock", () => {
       );
     }
   });
-  test("publishes only a ready inactive version with its canonical artifact", () => {
-    assert.deepEqual(
+  test("does not publish an older ready inactive version", () => {
+    assert.equal(
       getAdminDocumentPublishCandidateMock(
         "employee-benefits",
         "employee-benefits-v2026-1"
       ),
-      {
-        slug: "employee-benefits",
-        title: "Kebijakan Benefit Karyawan",
-        versionId: "employee-benefits-v2026-1",
-        versionLabel: "2026.1",
-      }
+      undefined
     );
     for (const versionId of [
       "employee-benefits-v2026-3",
@@ -100,7 +95,7 @@ describe("admin document version history mock", () => {
       throw new Error("Expected list");
     }
 
-    const next = applyAdminDocumentPublishMock(
+    const next = applyAdminDocumentRollbackMock(
       { document: list.data.documents[0], versions: history.data.versions },
       "employee-benefits-v2026-1"
     );
