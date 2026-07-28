@@ -353,7 +353,14 @@ export function getAdminDocumentPublishCandidateMock(
     (typeof versionsOrVersionId === "string" ? versionsOrVersionId : "");
   const preview = getAdminDocumentVersionPreviewMock(slug, versionId);
   const version = versions?.find((item) => item.id === versionId);
-  if (!preview || version?.isActive) {
+  const activeVersion = versions?.find((item) => item.isActive);
+  if (
+    !preview ||
+    version?.isActive ||
+    !version ||
+    !activeVersion ||
+    Date.parse(version.createdAt) <= Date.parse(activeVersion.createdAt)
+  ) {
     return;
   }
   return {

@@ -96,32 +96,23 @@ describe("admin publish state", () => {
     assert.equal(state.document.activeVersionLabel, "2026.3");
   });
 
-  test("uses current local state while still requiring the exact canonical artifact", () => {
+  test("does not offer publish for an older ready version", () => {
     assert.equal(
       getAdminDocumentPublishCandidateMock(
         state.document.slug,
         state.versions,
         "employee-benefits-v2026-1"
-      )?.versionLabel,
-      "2026.1"
-    );
-    const first = applyAdminDocumentPublishMock(
-      state,
-      "employee-benefits-v2026-1"
-    );
-    assert.ok(first);
-    assert.equal(
-      getAdminDocumentPublishCandidateMock(
-        first.document.slug,
-        first.versions,
-        "employee-benefits-v2026-3"
       ),
+      undefined
+    );
+    assert.equal(
+      applyAdminDocumentPublishMock(state, "employee-benefits-v2026-1"),
       undefined
     );
   });
 
   test("validates persisted document and history as one coherent override", () => {
-    const next = applyAdminDocumentPublishMock(
+    const next = applyAdminDocumentRollbackMock(
       state,
       "employee-benefits-v2026-1"
     );

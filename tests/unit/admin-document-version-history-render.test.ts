@@ -110,9 +110,9 @@ describe("admin document version history presentation", () => {
       /Teks dokumen tidak dapat dibaca\. Periksa file lalu coba lagi\./
     );
     assert.match(markup, /aria-live="polite"/);
-    assert.equal(occurrences(markup, ">Publikasikan<"), 2);
+    assert.equal(occurrences(markup, ">Publikasikan<"), 0);
     assert.match(markup, /Versi aktif pada daftar dokumen: 2026\.3/);
-    assert.match(markup, /aria-label="Publikasikan versi 2026\.1"/);
+    assert.doesNotMatch(markup, /aria-label="Publikasikan versi 2026\.1"/);
 
     assert.match(
       source,
