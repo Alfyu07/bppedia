@@ -456,8 +456,6 @@ function CitationCards({ data }: { data: CitationData }) {
               data-version-id={citation.versionId}
               href={citation.href}
               prefetch={false}
-              rel="noopener noreferrer"
-              target="_blank"
             >
               <span className="font-medium text-foreground text-xs">
                 {citation.title}
@@ -465,7 +463,7 @@ function CitationCards({ data }: { data: CitationData }) {
               <span className="text-muted-foreground text-xs">
                 Versi {citation.versionLabel} · Halaman {citation.page}
               </span>
-              <span className="sr-only">Buka sumber di tab baru.</span>
+              <span className="sr-only">Buka sumber.</span>
             </Link>
           </li>
         ))}

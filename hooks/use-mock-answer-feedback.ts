@@ -42,6 +42,7 @@ export function useMockAnswerFeedback() {
 
   return {
     feedbackByMessageId,
+    restoreMockAnswerFeedback: setFeedbackByMessageId,
     startMockAnswerFeedback,
     submitMockAnswerFeedback,
   };

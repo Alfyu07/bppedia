@@ -24,6 +24,10 @@ import {
   getMockDocumentOverview,
   normalizeMockDocumentPage,
 } from "@/lib/mocks/documents";
+import {
+  type EmployeeJourneySnapshot,
+  parseEmployeeJourneySnapshot,
+} from "@/lib/mocks/employee-journey";
 
 const FIRST_CHAT_ID = "00000000-0000-4000-8000-000000000001";
 const SECOND_CHAT_ID = "00000000-0000-4000-8000-000000000002";
@@ -134,6 +138,61 @@ describe("frontend mock boundary", () => {
         .citations[0].title,
       reply.citations[0].title
     );
+  });
+
+  test("round-trips a validated employee citation journey snapshot", () => {
+    const snapshot: EmployeeJourneySnapshot = {
+      chatId: FIRST_CHAT_ID,
+      draft: "What documents should I prepare?",
+      feedback: {
+        "assistant-1": { selection: "helpful", status: "saved" },
+      },
+      focus: "composer",
+      messages: [
+        {
+          id: "assistant-1",
+          metadata: { createdAt: "2026-07-28T00:00:00.000Z" },
+          parts: [{ text: "Annual leave guidance", type: "text" }],
+          role: "assistant",
+        },
+      ],
+      pendingTurn: null,
+      returnHref: `/chat/${FIRST_CHAT_ID}`,
+      savedAt: Date.now(),
+      scenario: "success",
+      scroll: { atEnd: false, top: 123 },
+      status: "ready",
+      version: 1,
+    };
+
+    assert.deepEqual(
+      parseEmployeeJourneySnapshot(JSON.stringify(snapshot)),
+      snapshot
+    );
+  });
+
+  test("rejects malformed, mismatched, and stale employee journey snapshots", () => {
+    assert.equal(parseEmployeeJourneySnapshot("not-json"), null);
+    assert.equal(
+      parseEmployeeJourneySnapshot(JSON.stringify({ version: 1 })),
+      null
+    );
+
+    const stale = {
+      chatId: FIRST_CHAT_ID,
+      draft: "",
+      feedback: {},
+      focus: "composer",
+      messages: [],
+      pendingTurn: null,
+      returnHref: `/chat/${SECOND_CHAT_ID}`,
+      savedAt: 0,
+      scenario: "success",
+      scroll: { atEnd: true, top: 0 },
+      status: "ready",
+      version: 1,
+    };
+    assert.equal(parseEmployeeJourneySnapshot(JSON.stringify(stale)), null);
   });
 
   test("strictly normalizes mock document page tokens", () => {

@@ -25,7 +25,7 @@ function PureChatHeader({
     <header className="sticky top-0 flex h-14 items-center gap-2 bg-sidebar px-3">
       <Button
         aria-label="Buka atau tutup sidebar"
-        className="md:hidden"
+        className="size-11 md:hidden"
         onClick={toggleSidebar}
         size="icon-sm"
         variant="ghost"
