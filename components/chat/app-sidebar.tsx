@@ -91,8 +91,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
               <div className="group/logo relative hidden items-center justify-center group-data-[collapsible=icon]:flex">
                 <SidebarMenuButton
                   asChild
-                  className="size-8 !px-0 items-center justify-center group-data-[collapsible=icon]:group-hover/logo:opacity-0"
-                  tooltip="Chatbot"
+                  className="size-11 !px-0 items-center justify-center group-data-[collapsible=icon]:group-hover/logo:opacity-0"
+                  tooltip="Beranda BPPedia"
                 >
                   <Link
                     aria-label="Ke beranda chat"
@@ -106,14 +106,14 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   <TooltipTrigger asChild>
                     <SidebarMenuButton
                       aria-label="Buka sidebar"
-                      className="pointer-events-none absolute inset-0 size-8 opacity-0 group-data-[collapsible=icon]:pointer-events-auto group-data-[collapsible=icon]:group-hover/logo:opacity-100"
+                      className="pointer-events-none absolute inset-0 size-11 opacity-0 group-data-[collapsible=icon]:pointer-events-auto group-data-[collapsible=icon]:group-hover/logo:opacity-100"
                       onClick={handleToggleSidebar}
                     >
                       <PanelLeftIcon className="size-4" />
                     </SidebarMenuButton>
                   </TooltipTrigger>
                   <TooltipContent className="hidden md:block" side="right">
-                    Open sidebar
+                    Buka navigasi
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -130,12 +130,12 @@ export function AppSidebar({ user }: { user: User | undefined }) {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    className="h-8 rounded-lg border border-sidebar-border text-[13px] text-sidebar-foreground/70 transition-colors duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    className="min-h-11 rounded-lg border border-sidebar-border text-[13px] text-sidebar-foreground/70 transition-colors duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                     onClick={handleNewChat}
-                    tooltip="New Chat"
+                    tooltip="Percakapan baru"
                   >
                     <PenSquareIcon className="size-4" />
-                    <span className="font-medium">New chat</span>
+                    <span className="font-medium">Percakapan baru</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {user ? (

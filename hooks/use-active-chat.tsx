@@ -40,6 +40,10 @@ import {
   type MockChatHandoffState,
   type MockConversationScenario,
 } from "@/lib/mocks";
+import {
+  employeeJourneyKey,
+  parseEmployeeJourneySnapshot,
+} from "@/lib/mocks/employee-journey";
 import type { ChatMessage } from "@/lib/types";
 import { fetcher, fetchWithErrorHandlers, generateUUID } from "@/lib/utils";
 
@@ -102,6 +106,7 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
   const mockHandoffRef = useRef(mockHandoff);
   const {
     feedbackByMessageId: mockAnswerFeedback,
+    restoreMockAnswerFeedback,
     startMockAnswerFeedback,
     submitMockAnswerFeedback,
   } = useMockAnswerFeedback();
@@ -464,6 +469,100 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
     commitPendingMockTurn(null);
     commitMockStatus("ready");
   }, [commitMockStatus, commitPendingMockTurn, pendingMockTurn]);
+
+  useEffect(() => {
+    if (!chatIdFromUrl || mockHandoffRef.current.status !== "idle") {
+      return;
+    }
+    const snapshot = parseEmployeeJourneySnapshot(
+      sessionStorage.getItem(employeeJourneyKey(chatIdFromUrl))
+    );
+    if (!snapshot) {
+      return;
+    }
+    commitMockHandoff({
+      chatId: snapshot.chatId,
+      prompt:
+        snapshot.messages
+          .find((message) => message.role === "user")
+          ?.parts.filter((part) => part.type === "text")
+          .map((part) => part.text)
+          .join("") ?? "",
+      status: "succeeded",
+    });
+    setMockMessages(snapshot.messages);
+    setInput(snapshot.draft);
+    restoreMockAnswerFeedback(snapshot.feedback);
+    mockScenarioRef.current = snapshot.scenario;
+    commitPendingMockTurn(snapshot.pendingTurn);
+    commitMockStatus(snapshot.status);
+    requestAnimationFrame(() => {
+      const container = document.querySelector<HTMLElement>(
+        "[data-testid='messages-container']"
+      );
+      if (container) {
+        container.scrollTop = snapshot.scroll.atEnd
+          ? container.scrollHeight
+          : snapshot.scroll.top;
+      }
+      document
+        .querySelector<HTMLTextAreaElement>("[data-testid='multimodal-input']")
+        ?.focus();
+    });
+  }, [
+    chatIdFromUrl,
+    commitMockHandoff,
+    commitMockStatus,
+    commitPendingMockTurn,
+    restoreMockAnswerFeedback,
+  ]);
+
+  useEffect(() => {
+    if (!isMockChat) {
+      return;
+    }
+    const persistCitationJourney = (event: MouseEvent) => {
+      const link = (event.target as Element | null)?.closest<HTMLAnchorElement>(
+        "a[data-document-id]"
+      );
+      if (!link) {
+        return;
+      }
+      const container = document.querySelector<HTMLElement>(
+        "[data-testid='messages-container']"
+      );
+      const atEnd = container
+        ? container.scrollHeight -
+            container.scrollTop -
+            container.clientHeight <
+          8
+        : true;
+      sessionStorage.setItem(
+        employeeJourneyKey(chatId),
+        JSON.stringify({
+          chatId,
+          draft: input,
+          feedback: mockAnswerFeedback,
+          focus: "composer",
+          messages: mockMessages,
+          pendingTurn: pendingMockTurnRef.current,
+          returnHref: `/chat/${chatId}`,
+          savedAt: Date.now(),
+          scenario: mockScenarioRef.current,
+          scroll: { atEnd, top: container?.scrollTop ?? 0 },
+          status: mockStatusRef.current,
+          version: 1,
+        })
+      );
+      sessionStorage.setItem(
+        "bppedia:employee-journey:return",
+        `/chat/${chatId}`
+      );
+    };
+    document.addEventListener("click", persistCitationJourney, true);
+    return () =>
+      document.removeEventListener("click", persistCitationJourney, true);
+  }, [chatId, input, isMockChat, mockAnswerFeedback, mockMessages]);
 
   const previousRouteRef = useRef(pathname);
   useEffect(() => {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   type ChangeEvent,
   type FormEvent,
@@ -35,6 +35,8 @@ export function MockPdfViewer({
   versionReturnHref,
 }: MockPdfViewerProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const [chatReturnHref, setChatReturnHref] = useState<string | null>(null);
   const currentPage = normalizeMockDocumentPage(
     searchParams.getAll("page"),
     pageCount
@@ -43,6 +45,11 @@ export function MockPdfViewer({
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
   const pdfUrl = `${basePath}${pdfHref}`;
   const objectUrl = `${pdfUrl}#page=${currentPage}&view=FitH&toolbar=0&navpanes=0`;
+
+  useEffect(() => {
+    const href = sessionStorage.getItem("bppedia:employee-journey:return");
+    setChatReturnHref(href?.match(/^\/chat\/[\w-]+$/) ? href : null);
+  }, []);
 
   const openPage = useCallback((page: number) => {
     window.history.replaceState(null, "", `?page=${page}`);
@@ -81,18 +88,31 @@ export function MockPdfViewer({
     () => openPage(currentPage - 1),
     [currentPage, openPage]
   );
+  const handleReturnToChat = useCallback(() => {
+    router.push(chatReturnHref ?? "/");
+  }, [chatReturnHref, router]);
 
   return (
     <main className="flex min-h-dvh w-full flex-col overflow-x-hidden bg-background">
       <header className="border-border/50 border-b bg-card/80 px-4 py-3 sm:px-6">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3">
-          <Button asChild variant="outline">
-            <Link href={versionReturnHref ?? "/"}>
-              {versionReturnHref
-                ? "Kembali ke riwayat versi"
-                : "Ke beranda BPPedia"}
-            </Link>
-          </Button>
+          {chatReturnHref && !versionReturnHref ? (
+            <Button
+              onClick={handleReturnToChat}
+              type="button"
+              variant="outline"
+            >
+              Kembali ke percakapan
+            </Button>
+          ) : (
+            <Button asChild variant="outline">
+              <Link href={versionReturnHref ?? "/"}>
+                {versionReturnHref
+                  ? "Kembali ke riwayat versi"
+                  : "Ke beranda BPPedia"}
+              </Link>
+            </Button>
+          )}
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-semibold text-foreground text-lg">
               {title}

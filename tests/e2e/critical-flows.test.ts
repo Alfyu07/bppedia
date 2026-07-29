@@ -33,24 +33,33 @@ test.describe("critical user flows", () => {
     await expect(page.getByText("Cantumkan tanggal cuti")).toBeVisible();
   });
 
-  test("employee opens an answer citation at the referenced PDF page", async ({
+  test("employee answer-to-source round trip restores the exact journey", async ({
     page,
   }) => {
     await startConversation(page);
-    const citation = page
-      .locator('[data-document-id="employee-benefits"]')
-      .first();
-    const [documentPage] = await Promise.all([
-      page.waitForEvent("popup"),
-      citation.click(),
-    ]);
-    await expect(documentPage).toHaveURL(
-      /\/documents\/employee-benefits\?page=12$/
-    );
-    await expect(documentPage.getByRole("status")).toHaveText(
-      "Halaman 12 dari 12"
-    );
-    await documentPage.close();
+    const chatUrl = page.url();
+    const input = page.getByTestId("multimodal-input");
+    await input.fill("What documents should I prepare?");
+    await page.getByTestId("send-button").click();
+    await expect(page.getByTestId("message-assistant")).toHaveCount(2);
+    const helpful = page
+      .getByRole("group", { name: "Penilaian jawaban" })
+      .last()
+      .getByRole("button", { name: "Ya, jawaban ini membantu" });
+    await helpful.click();
+    await input.fill("Keep this draft while I check the source");
+
+    await page.locator('[data-document-id="employee-benefits"]').last().click();
+    await expect(page).toHaveURL(/\/documents\/employee-benefits\?page=12$/);
+    await expect(page.getByRole("status")).toHaveText("Halaman 12 dari 12");
+    await page.getByRole("button", { name: "Kembali ke percakapan" }).click();
+
+    await expect(page).toHaveURL(chatUrl);
+    await expect(page.getByTestId("message-user")).toHaveCount(2);
+    await expect(page.getByTestId("message-assistant")).toHaveCount(2);
+    await expect(input).toHaveValue("Keep this draft while I check the source");
+    await expect(input).toBeFocused();
+    await expect(helpful).toHaveAttribute("aria-pressed", "true");
   });
 
   test("employee retries a failed answer without duplicating the question", async ({
